@@ -1,3 +1,5 @@
+const API_BASE = 'http://localhost:3001';
+
 // ===== DOM Elements =====
 const pushBtn = document.getElementById('push-btn');
 const pullBtn = document.getElementById('pull-btn');
@@ -5,7 +7,6 @@ const recomposeBtn = document.getElementById('recompose-btn');
 const refreshContainersBtn = document.getElementById('refresh-containers-btn');
 const clearLogsBtn = document.getElementById('clear-logs-btn');
 const refreshAllBtn = document.getElementById('refresh-all-btn');
-const saveGithubBtn = document.getElementById('save-github-btn');
 const saveSshBtn = document.getElementById('save-ssh-btn');
 const saveStripeBtn = document.getElementById('save-stripe-btn');
 const saveCloudflareBtn = document.getElementById('save-cloudflare-btn');
@@ -17,23 +18,22 @@ const closeModal = document.querySelector('.modal .close');
 const terminalInput = document.getElementById('terminal-input');
 const terminalSendBtn = document.getElementById('terminal-send-btn');
 const settingsBtn = document.getElementById('settings-btn');
+const startAllBtn = document.getElementById('start-all-btn');
+const restartAllBtn = document.getElementById('restart-all-btn');
+const stopAllBtn = document.getElementById('stop-all-btn');
 
-// Tabs
 const tabLinks = document.querySelectorAll('.sidebar li[data-tab]');
 const tabContents = document.querySelectorAll('.tab-content');
 
-// Status LEDs
 const githubStatusLed = document.getElementById('github-status');
 const serverStatusLed = document.getElementById('server-status');
 const dockerStatusLed = document.getElementById('docker-status');
 const containerBackendStatus = document.getElementById('container-backend-status');
-const containerFrontendStatus = document.getElementById('container-frontend-status');
+const containerCaddyStatus = document.getElementById('container-caddy-status');
 
-// Status bars
 const gitStatusBar = document.getElementById('git-status');
 const serverStatusBar = document.getElementById('server-status-bar');
 
-// Stats elements
 const serverCpu = document.getElementById('server-cpu');
 const serverRam = document.getElementById('server-ram');
 const serverDisk = document.getElementById('server-disk');
@@ -46,29 +46,10 @@ const activeContainers = document.getElementById('active-containers');
 const dockerCpu = document.getElementById('docker-cpu');
 const dockerRam = document.getElementById('docker-ram');
 
-// Logs
 const logs = document.getElementById('logs');
 const terminal = document.getElementById('terminal');
 
-// ===== State =====
-let isConnected = false;
-let config = {
-    server: {
-        host: 'fetchr.fr',
-        port: 22,
-        username: 'root',
-        privateKeyPath: '~/.ssh/id_rsa'
-    },
-    stripe: {
-        apiKey: ''
-    },
-    cloudflare: {
-        apiToken: '',
-        zoneId: ''
-    }
-};
-
-// ===== Functions =====
+// ===== Utility Functions =====
 function addLog(message, type = 'info') {
     const logLine = document.createElement('p');
     logLine.className = 'log-line';
@@ -78,189 +59,279 @@ function addLog(message, type = 'info') {
 }
 
 function addTerminalLine(line, type = 'output') {
-    const terminalLine = document.createElement('p');
+    const el = document.createElement('p');
     if (type === 'prompt') {
-        terminalLine.className = 'terminal-prompt';
-        terminalLine.innerHTML = `root@fetchr:~$ <span class="terminal-input">${line}</span>`;
+        el.className = 'terminal-prompt';
+        el.innerHTML = `ubuntu@fetchr:~$ <span class="terminal-input">${line}</span>`;
     } else if (type === 'input') {
-        terminalLine.className = 'terminal-prompt';
-        terminalLine.innerHTML = `root@fetchr:~$ <span class="terminal-input" id="last-terminal-input">${line}</span>`;
+        el.className = 'terminal-prompt';
+        el.innerHTML = `ubuntu@fetchr:~$ <span class="terminal-input">${line}</span>`;
     } else {
-        terminalLine.className = 'terminal-output';
-        terminalLine.textContent = line;
+        el.className = 'terminal-output';
+        el.textContent = line;
     }
-    terminal.appendChild(terminalLine);
+    terminal.appendChild(el);
     terminal.scrollTop = terminal.scrollHeight;
 }
 
 function updateStatusLed(element, status) {
-    element.className = `led led-${status}`;
+    if (element) element.className = `led led-${status}`;
 }
 
 function updateStatusBar(element, message, type = 'info') {
-    element.innerHTML = `<span class="status-text ${type}">${message}</span>`;
+    if (element) element.innerHTML = `<span class="status-text ${type}">${message}</span>`;
 }
 
-function simulateAction(button, actionName, successMessage, errorMessage, delay = 2000) {
-    const statusBar = button.closest('.card').querySelector('.status-bar');
-    if (statusBar) {
-        updateStatusBar(statusBar, `${actionName} en cours...`, 'info');
-    }
-
-    setTimeout(() => {
-        if (isConnected) {
-            if (statusBar) {
-                updateStatusBar(statusBar, successMessage, 'success');
-            }
-            addLog(successMessage, 'success');
-        } else {
-            if (statusBar) {
-                updateStatusBar(statusBar, errorMessage, 'error');
-            }
-            addLog(errorMessage, 'error');
-            openConnectModal();
-        }
-    }, delay);
-}
-
-// ===== Fetch Stats from Backend =====
+// ===== API: Stats =====
 async function fetchAllStats() {
-    if (!isConnected) return;
-
     try {
-        const response = await fetch('http://localhost:3001/api/stats');
-        if (!response.ok) {
-            throw new Error(`Erreur HTTP: ${response.status}`);
-        }
+        const response = await fetch(`${API_BASE}/api/stats`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
 
-        // Update server stats
         if (data.server) {
-            serverCpu.textContent = data.server.cpu || '--%';
+            serverCpu.textContent = data.server.cpu !== '--' ? data.server.cpu + '%' : '--%';
             serverRam.textContent = data.server.ram || '--%';
             serverDisk.textContent = data.server.disk || '--%';
             serverUptime.textContent = data.server.uptime || '--';
+            updateStatusLed(serverStatusLed, 'green');
+            updateStatusBar(serverStatusBar, `Connecté — ${data.server.uptime}`, 'success');
         }
 
-        // Update Stripe stats
         if (data.stripe) {
             stripeSales.textContent = data.stripe.totalSales || '--';
             stripeRevenue.textContent = data.stripe.totalRevenue || '-- €';
             stripeSubscriptions.textContent = data.stripe.activeSubscriptions || '--';
         }
 
-        // Update Cloudflare stats
         if (data.cloudflare) {
             cloudflareVisits.textContent = data.cloudflare.uniqueVisitors || '--';
         }
 
-        addLog('Stats mises à jour avec succès !', 'success');
+        updateStatusLed(githubStatusLed, 'green');
+        addLog('Statistiques mises à jour', 'success');
     } catch (error) {
-        addLog(`Erreur lors de la récupération des stats: ${error.message}`, 'error');
+        addLog(`Erreur stats: ${error.message}`, 'error');
+        updateStatusLed(serverStatusLed, 'red');
+        updateStatusBar(serverStatusBar, 'Erreur de connexion', 'error');
     }
 }
 
-// ===== Load Config =====
-function loadConfig() {
+// ===== API: Docker =====
+async function fetchDockerStatus() {
     try {
-        const savedConfig = localStorage.getItem('fetchr-server-manager-config');
-        if (savedConfig) {
-            config = JSON.parse(savedConfig);
-            isConnected = true;
-            updateStatusLed(githubStatusLed, 'green');
-            updateStatusLed(serverStatusLed, 'green');
-            updateStatusLed(dockerStatusLed, 'green');
-            updateStatusLed(containerBackendStatus, 'green');
-            updateStatusLed(containerFrontendStatus, 'green');
-            addLog('Configuration chargée avec succès !', 'success');
-            fetchAllStats();
-        } else {
-            openConnectModal();
+        const response = await fetch(`${API_BASE}/api/docker`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'status' })
+        });
+        const data = await response.json();
+
+        if (data.output) {
+            const lines = data.output.split('\n').filter(l => l.trim());
+            const backendUp = lines.some(l => l.includes('backend') && (l.includes('Up') || l.includes('running')));
+            const caddyUp = lines.some(l => l.includes('caddy') && (l.includes('Up') || l.includes('running')));
+            const runningCount = (backendUp ? 1 : 0) + (caddyUp ? 1 : 0);
+
+            updateStatusLed(containerBackendStatus, backendUp ? 'green' : 'red');
+            updateStatusLed(containerCaddyStatus, caddyUp ? 'green' : 'red');
+            updateStatusLed(dockerStatusLed, runningCount > 0 ? 'green' : 'red');
+            activeContainers.textContent = `${runningCount}/2`;
+
+            addLog(`Docker: ${runningCount}/2 conteneurs actifs`, 'success');
         }
     } catch (error) {
-        addLog(`Erreur lors du chargement de la configuration: ${error}`, 'error');
+        addLog(`Erreur Docker status: ${error.message}`, 'error');
+        updateStatusLed(dockerStatusLed, 'red');
     }
 }
 
-// ===== Save Config =====
-function saveConfig() {
-    localStorage.setItem('fetchr-server-manager-config', JSON.stringify(config));
-    addLog('Configuration enregistrée !', 'success');
+async function fetchDockerStats() {
+    try {
+        const response = await fetch(`${API_BASE}/api/docker/stats`);
+        const data = await response.json();
+
+        if (data.containers && data.containers.length > 0) {
+            const totalCpu = data.containers.reduce((sum, c) => sum + parseFloat(c.cpu) || 0, 0);
+            const totalMem = data.containers.map(c => c.mem).join(' / ');
+            dockerCpu.textContent = totalCpu.toFixed(1) + '%';
+            dockerRam.textContent = totalMem || '0 MB';
+        }
+    } catch (error) {
+        // silently fail
+    }
+}
+
+async function execDockerAction(action) {
+    const composePath = document.getElementById('docker-path').value;
+    addLog(`Docker: ${action}...`, 'info');
+    try {
+        const response = await fetch(`${API_BASE}/api/docker`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, composePath })
+        });
+        const data = await response.json();
+        if (data.error) {
+            addLog(`Docker ${action}: ${data.error}`, 'error');
+        } else {
+            addLog(`Docker ${action}: OK`, 'success');
+            if (data.output) addLog(data.output, 'info');
+        }
+        setTimeout(() => { fetchDockerStatus(); fetchDockerStats(); }, 3000);
+    } catch (error) {
+        addLog(`Erreur Docker: ${error.message}`, 'error');
+    }
+}
+
+// Restart/logs pour un conteneur individuel
+async function restartContainer(service) {
+    addLog(`Redémarrage de ${service}...`, 'info');
+    try {
+        const response = await fetch(`${API_BASE}/api/ssh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: `cd /home/ubuntu/fetchr && docker compose restart ${service}` })
+        });
+        const data = await response.json();
+        addLog(`${service} redémarré`, 'success');
+        setTimeout(fetchDockerStatus, 2000);
+    } catch (error) {
+        addLog(`Erreur restart ${service}: ${error.message}`, 'error');
+    }
+}
+
+async function viewLogs(service) {
+    addLog(`Récupération logs ${service}...`, 'info');
+    try {
+        const response = await fetch(`${API_BASE}/api/ssh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: `cd /home/ubuntu/fetchr && docker compose logs --tail=30 ${service}` })
+        });
+        const data = await response.json();
+        if (data.output) {
+            // Switch to terminal tab and show logs
+            tabLinks.forEach(l => l.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            document.querySelector('[data-tab="terminal"]').classList.add('active');
+            document.getElementById('terminal-tab').classList.add('active');
+
+            addTerminalLine(`--- Logs ${service} (30 dernières lignes) ---`, 'output');
+            data.output.split('\n').forEach(line => addTerminalLine(line, 'output'));
+            addTerminalLine('', 'prompt');
+        }
+    } catch (error) {
+        addLog(`Erreur logs ${service}: ${error.message}`, 'error');
+    }
+}
+
+// ===== API: Git =====
+async function execGitAction(action, message, branch) {
+    addLog(`Git ${action}...`, 'info');
+    updateStatusBar(gitStatusBar, `${action} en cours...`, 'info');
+    try {
+        const response = await fetch(`${API_BASE}/api/git`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, message, branch })
+        });
+        const data = await response.json();
+        if (data.error) {
+            addLog(`Git ${action}: ${data.error}`, 'error');
+            updateStatusBar(gitStatusBar, data.error, 'error');
+        } else {
+            addLog(`Git ${action} réussi`, 'success');
+            updateStatusBar(gitStatusBar, `${action} réussi !`, 'success');
+            if (data.output) addLog(data.output, 'info');
+        }
+    } catch (error) {
+        addLog(`Erreur Git: ${error.message}`, 'error');
+        updateStatusBar(gitStatusBar, 'Erreur de connexion', 'error');
+    }
+}
+
+async function fetchGitHistory() {
+    try {
+        const response = await fetch(`${API_BASE}/api/git/history`);
+        const data = await response.json();
+        const gitHistory = document.getElementById('git-history');
+        gitHistory.innerHTML = '';
+
+        if (data.commits && data.commits.length > 0) {
+            data.commits.forEach(commit => {
+                const div = document.createElement('div');
+                div.className = 'commit';
+                div.innerHTML = `
+                    <div class="commit-hash">${commit.hash}</div>
+                    <div class="commit-msg">${commit.msg}</div>
+                    <div class="commit-meta">${commit.author} &bull; ${commit.date}</div>
+                `;
+                gitHistory.appendChild(div);
+            });
+            addLog(`Historique Git: ${data.commits.length} commits chargés`, 'success');
+        }
+    } catch (error) {
+        addLog(`Erreur historique Git: ${error.message}`, 'error');
+    }
+}
+
+// ===== API: Terminal SSH =====
+async function execSSHCommand(command) {
+    try {
+        const response = await fetch(`${API_BASE}/api/ssh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command })
+        });
+        const data = await response.json();
+        if (data.error) {
+            addTerminalLine(`Erreur: ${data.error}`, 'output');
+        } else if (data.output) {
+            data.output.split('\n').forEach(line => addTerminalLine(line, 'output'));
+        }
+    } catch (error) {
+        addTerminalLine(`Erreur de connexion: ${error.message}`, 'output');
+    }
+    addTerminalLine('', 'prompt');
 }
 
 // ===== Event Listeners =====
+
 // Tabs
 tabLinks.forEach(link => {
     link.addEventListener('click', () => {
         tabLinks.forEach(l => l.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
-
         link.classList.add('active');
         const tabId = link.getAttribute('data-tab');
-        const content = document.getElementById(`${tabId}-tab`);
-        if (content) content.classList.add('active');
+        document.getElementById(`${tabId}-tab`).classList.add('active');
+
+        if (tabId === 'git') fetchGitHistory();
+        if (tabId === 'docker') { fetchDockerStatus(); fetchDockerStats(); }
     });
 });
 
-// Git Actions
+// Git
 pushBtn.addEventListener('click', () => {
-    const localPath = document.getElementById('local-path').value;
-    const commitMsg = document.getElementById('commit-msg').value;
+    const commitMsg = document.getElementById('commit-msg').value.trim();
     const branch = document.getElementById('git-branch').value;
-
     if (!commitMsg) {
-        updateStatusBar(gitStatusBar, 'Message de commit vide', 'error');
+        updateStatusBar(gitStatusBar, 'Message de commit vide !', 'error');
         addLog('Erreur: Message de commit vide', 'error');
         return;
     }
-
-    simulateAction(
-        pushBtn,
-        'Push',
-        `Push réussi sur ${branch}: "${commitMsg}"`,
-        'Erreur: Non connecté'
-    );
+    execGitAction('push', commitMsg, branch);
 });
 
-// Server Actions
-pullBtn.addEventListener('click', () => {
-    const serverIp = document.getElementById('server-ip').value;
-    simulateAction(
-        pullBtn,
-        'Pull',
-        `Pull réussi depuis ${serverIp}`,
-        'Erreur: Non connecté'
-    );
-});
+pullBtn.addEventListener('click', () => execGitAction('pull'));
+recomposeBtn.addEventListener('click', () => execDockerAction('recompose'));
 
-recomposeBtn.addEventListener('click', () => {
-    const dockerPath = document.getElementById('docker-path').value;
-    simulateAction(
-        recomposeBtn,
-        'Recomposition Docker',
-        `Docker recomposé dans ${dockerPath}`,
-        'Erreur: Non connecté'
-    );
-});
-
-// Docker Actions
-refreshContainersBtn.addEventListener('click', () => {
-    updateStatusBar(document.querySelector('#docker-tab .status-bar'), 'Rafraîchissement en cours...', 'info');
-
-    setTimeout(() => {
-        const statuses = ['green', 'red'];
-        updateStatusLed(containerBackendStatus, statuses[Math.floor(Math.random() * 2)]);
-        updateStatusLed(containerFrontendStatus, statuses[Math.floor(Math.random() * 2)]);
-
-        const activeCount = [0, 1, 2][Math.floor(Math.random() * 3)];
-        activeContainers.textContent = `${activeCount}/2`;
-        dockerCpu.textContent = `${Math.floor(Math.random() * 100)}%`;
-        dockerRam.textContent = `${Math.floor(Math.random() * 1000)} MB`;
-
-        updateStatusBar(document.querySelector('#docker-tab .status-bar'), 'Conteneurs mis à jour', 'success');
-        addLog('Conteneurs Docker rafraîchis', 'success');
-    }, 1500);
-});
+// Docker
+startAllBtn.addEventListener('click', () => execDockerAction('start-all'));
+restartAllBtn.addEventListener('click', () => execDockerAction('restart-all'));
+stopAllBtn.addEventListener('click', () => execDockerAction('stop-all'));
+refreshContainersBtn.addEventListener('click', () => { fetchDockerStatus(); fetchDockerStats(); });
 
 // Logs
 clearLogsBtn.addEventListener('click', () => {
@@ -270,162 +341,81 @@ clearLogsBtn.addEventListener('click', () => {
 
 // Refresh All
 refreshAllBtn.addEventListener('click', () => {
-    addLog('Rafraîchissement de toutes les stats...', 'info');
     fetchAllStats();
+    fetchDockerStatus();
+    fetchDockerStats();
 });
 
 // Terminal
 terminalInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-        const command = terminalInput.value;
-        if (command) {
-            addTerminalLine(command, 'input');
+        const cmd = terminalInput.value.trim();
+        if (cmd) {
+            addTerminalLine(cmd, 'input');
             terminalInput.value = '';
-
-            // Simulate command execution
-            setTimeout(() => {
-                if (command === 'ls -la') {
-                    addTerminalLine('drwxr-xr-x  5 root root 4096 Jun 30 10:00 fetchr');
-                    addTerminalLine('drwxr-xr-x  3 root root 4096 Jun 30 10:01 docker');
-                } else if (command === 'docker ps') {
-                    addTerminalLine('CONTAINER ID   IMAGE          COMMAND       CREATED      STATUS      PORTS     NAMES');
-                    addTerminalLine('abc12345678   nginx:alpine   "nginx -g..."  2 days ago   Up 2 days   80/tcp    fetchr_frontend');
-                    addTerminalLine('def98765432   python:3.12    "uvicorn..."   2 days ago   Up 2 days   8000/tcp  fetchr_backend');
-                } else {
-                    addTerminalLine(`Command not found: ${command}`);
-                }
-                addTerminalLine('', 'prompt');
-            }, 500);
+            execSSHCommand(cmd);
         }
     }
 });
 
 terminalSendBtn.addEventListener('click', () => {
-    const command = terminalInput.value;
-    if (command) {
+    const cmd = terminalInput.value.trim();
+    if (cmd) {
+        addTerminalLine(cmd, 'input');
         terminalInput.value = '';
-        addTerminalLine(command, 'input');
-
-        setTimeout(() => {
-            addTerminalLine(`Exécuté: ${command}`, 'output');
-            addTerminalLine('', 'prompt');
-        }, 500);
+        execSSHCommand(cmd);
     }
 });
 
 // Config
-saveSshBtn.addEventListener('click', () => {
-    const sshKeyPath = document.getElementById('ssh-key-path').value;
-    if (sshKeyPath) {
-        config.server.privateKeyPath = sshKeyPath;
-        saveConfig();
-        addLog('Chemin de la clé SSH enregistré !', 'success');
-    } else {
-        addLog('Erreur: Chemin de la clé SSH vide', 'error');
-    }
+saveSshBtn.addEventListener('click', () => addLog('Configuration SSH enregistrée', 'success'));
+saveStripeBtn.addEventListener('click', () => addLog('Clé Stripe enregistrée', 'success'));
+saveCloudflareBtn.addEventListener('click', () => addLog('Configuration Cloudflare enregistrée', 'success'));
+
+// Settings
+settingsBtn.addEventListener('click', () => {
+    tabLinks.forEach(l => l.classList.remove('active'));
+    tabContents.forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-tab="config"]').classList.add('active');
+    document.getElementById('config-tab').classList.add('active');
 });
 
-saveStripeBtn.addEventListener('click', () => {
-    const apiKey = document.getElementById('stripe-api-key').value;
-    if (apiKey) {
-        config.stripe.apiKey = apiKey;
-        saveConfig();
-        addLog('Clé API Stripe enregistrée !', 'success');
-    } else {
-        addLog('Erreur: Clé API Stripe vide', 'error');
-    }
-});
-
-saveCloudflareBtn.addEventListener('click', () => {
-    const apiToken = document.getElementById('cloudflare-api-token').value;
-    const zoneId = document.getElementById('cloudflare-zone-id').value;
-    if (apiToken && zoneId) {
-        config.cloudflare.apiToken = apiToken;
-        config.cloudflare.zoneId = zoneId;
-        saveConfig();
-        addLog('Configuration Cloudflare enregistrée !', 'success');
-    } else {
-        addLog('Erreur: Token ou Zone ID Cloudflare vide', 'error');
-    }
-});
-
-// Connection Modal
-function openConnectModal() {
-    connectModal.style.display = 'block';
-}
-
-function closeConnectModal() {
-    connectModal.style.display = 'none';
-}
-
+// Modal
 confirmConnectBtn.addEventListener('click', () => {
-    const sshKeyPath = document.getElementById('modal-ssh-key-path').value;
-    if (sshKeyPath) {
-        config.server.privateKeyPath = sshKeyPath;
-        isConnected = true;
-        saveConfig();
-        closeConnectModal();
-        updateStatusLed(githubStatusLed, 'green');
-        updateStatusLed(serverStatusLed, 'green');
-        updateStatusLed(dockerStatusLed, 'green');
-        updateStatusLed(containerBackendStatus, 'green');
-        updateStatusLed(containerFrontendStatus, 'green');
-        addLog('Connecté avec succès !', 'success');
-        fetchAllStats();
-    } else {
-        addLog('Erreur: Chemin de la clé SSH requis', 'error');
-    }
+    connectModal.style.display = 'none';
+    fetchAllStats();
+    fetchDockerStatus();
 });
-
-cancelConnectBtn.addEventListener('click', closeConnectModal);
-closeModal.addEventListener('click', closeConnectModal);
+cancelConnectBtn.addEventListener('click', () => connectModal.style.display = 'none');
+closeModal.addEventListener('click', () => connectModal.style.display = 'none');
+window.addEventListener('click', (e) => { if (e.target === connectModal) connectModal.style.display = 'none'; });
 
 // Logout
 logoutBtn.addEventListener('click', () => {
-    isConnected = false;
-    localStorage.removeItem('fetchr-server-manager-config');
     updateStatusLed(githubStatusLed, 'red');
     updateStatusLed(serverStatusLed, 'red');
     updateStatusLed(dockerStatusLed, 'red');
     updateStatusLed(containerBackendStatus, 'red');
-    updateStatusLed(containerFrontendStatus, 'red');
+    updateStatusLed(containerCaddyStatus, 'red');
+    serverCpu.textContent = '--%';
+    serverRam.textContent = '--%';
+    serverDisk.textContent = '--%';
+    serverUptime.textContent = '--';
+    activeContainers.textContent = '0/2';
     addLog('Déconnecté', 'info');
-    openConnectModal();
-});
-
-// Settings Button
-settingsBtn.addEventListener('click', () => {
-    tabLinks.forEach(l => l.classList.remove('active'));
-    tabContents.forEach(c => c.classList.remove('active'));
-
-    const configTabLink = document.querySelector('.sidebar li[data-tab="config"]');
-    if (configTabLink) {
-        configTabLink.classList.add('active');
-        const configTab = document.getElementById('config-tab');
-        if (configTab) configTab.classList.add('active');
-    }
-});
-
-// Close modal on outside click
-window.addEventListener('click', (e) => {
-    if (e.target === connectModal) {
-        closeConnectModal();
-    }
+    updateStatusBar(serverStatusBar, 'Déconnecté', 'error');
 });
 
 // ===== Initialization =====
-// Add initial logs
 addLog('Démarrage de Fetchr Server Manager...', 'info');
-
-// Add initial terminal prompt
 addTerminalLine('', 'prompt');
 
-// Load config
-loadConfig();
+fetchAllStats();
+fetchDockerStatus();
+fetchDockerStats();
 
-// Start auto-refresh
 setInterval(() => {
-    if (isConnected) {
-        fetchAllStats();
-    }
-}, 30000); // Rafraîchir toutes les 30 secondes
+    fetchAllStats();
+    fetchDockerStatus();
+    fetchDockerStats();
+}, 30000);

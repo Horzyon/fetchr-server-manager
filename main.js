@@ -1,5 +1,5 @@
 const express = require('express');
-const { NodeSSH } = require('ssh2');
+const { NodeSSH } = require('node-ssh');
 const stripe = require('stripe');
 const axios = require('axios');
 const fs = require('fs');
@@ -10,6 +10,7 @@ const app = express();
 const PORT = 3001;
 
 app.use(express.json());
+app.use(express.static(__dirname));
 
 // Charger la configuration
 let config;
@@ -63,12 +64,12 @@ if (config.stripe.apiKey) {
 async function connectToServer() {
     const ssh = new NodeSSH();
     try {
-        const privateKey = fs.readFileSync(path.expand(config.server.privateKeyPath));
+        const keyPath = config.server.privateKeyPath.replace('~', os.homedir());
         await ssh.connect({
             host: config.server.host,
             port: config.server.port,
             username: config.server.username,
-            privateKey: privateKey
+            privateKey: fs.readFileSync(keyPath, 'utf8')
         });
         console.log(`✅ Connecté au serveur ${config.server.host} via SSH`);
         return ssh;
@@ -84,7 +85,7 @@ async function execSSHCommand(ssh, command) {
         const result = await ssh.execCommand(command);
         if (result.code !== 0) {
             console.error(`❌ Commande échouée: ${command}`, result.stderr);
-            return null;
+            return result.stderr ? result.stderr.trim() : null;
         }
         return result.stdout.trim();
     } catch (error) {
@@ -139,16 +140,15 @@ async function getStripeStats() {
     }
 
     try {
-        // Récupérer les paiements réussis
-        const payments = await stripeClient.paymentIntents.list({
-            limit: 100,
-            status: 'succeeded'
+        const payments = await stripeClient.charges.list({
+            limit: 100
         });
 
-        const totalSales = payments.data.length;
-        const totalRevenue = payments.data.reduce(
+        const successfulPayments = payments.data.filter(p => p.paid && !p.refunded);
+        const totalSales = successfulPayments.length;
+        const totalRevenue = successfulPayments.reduce(
             (sum, payment) => sum + (payment.amount || 0), 0
-        ) / 100; // Convertir en euros
+        ) / 100;
 
         // Récupérer les abonnements actifs
         const subscriptions = await stripeClient.subscriptions.list({
@@ -184,25 +184,45 @@ async function getCloudflareStats() {
     }
 
     try {
-        const response = await axios.get(
-            `https://api.cloudflare.com/client/v4/zones/${config.cloudflare.zoneId}/analytics/dashboard`,
+        const now = new Date();
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const query = `{
+            viewer {
+                zones(filter: {zoneTag: "${config.cloudflare.zoneId}"}) {
+                    httpRequests1dGroups(limit: 1, filter: {date_geq: "${yesterday.toISOString().split('T')[0]}", date_leq: "${now.toISOString().split('T')[0]}"}) {
+                        sum {
+                            requests
+                            bytes
+                        }
+                        uniq {
+                            uniques
+                        }
+                    }
+                }
+            }
+        }`;
+
+        const response = await axios.post(
+            'https://api.cloudflare.com/client/v4/graphql',
+            { query },
             {
                 headers: {
                     'Authorization': `Bearer ${config.cloudflare.apiToken}`,
                     'Content-Type': 'application/json'
-                },
-                params: {
-                    since: -86400 // Dernières 24h (en secondes)
                 }
             }
         );
 
-        const data = response.data.result;
-        return {
-            requests: data.requests?.all?.toLocaleString() || '--',
-            bandwidth: data.bandwidth?.all ? (data.bandwidth.all / (1024 * 1024)).toFixed(2) + ' GB' : '-- GB',
-            uniqueVisitors: data.uniques?.all?.toLocaleString() || '--'
-        };
+        const zones = response.data?.data?.viewer?.zones;
+        if (zones && zones.length > 0 && zones[0].httpRequests1dGroups.length > 0) {
+            const data = zones[0].httpRequests1dGroups[0];
+            return {
+                requests: data.sum.requests?.toLocaleString() || '--',
+                bandwidth: data.sum.bytes ? (data.sum.bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB' : '-- GB',
+                uniqueVisitors: data.uniq.uniques?.toLocaleString() || '--'
+            };
+        }
+        return { requests: '--', bandwidth: '-- GB', uniqueVisitors: '--' };
     } catch (error) {
         console.error('❌ Erreur Cloudflare:', error.response?.data || error.message);
         return {
@@ -276,10 +296,10 @@ app.post('/api/git', async (req, res) => {
                 if (!message) {
                     return res.status(400).json({ error: 'Message de commit manquant' });
                 }
-                command = `cd /root/fetchr && git add . && git commit -m \"${message}\" && git push origin ${branch || 'master'}`;
+                command = `cd /home/ubuntu/fetchr && git add . && git commit -m \"${message}\" && git push origin ${branch || 'master'}`;
                 break;
             case 'pull':
-                command = 'cd /root/fetchr && git pull';
+                command = 'cd /home/ubuntu/fetchr && git pull';
                 break;
             default:
                 return res.status(400).json({ error: 'Action non valide' });
@@ -312,22 +332,22 @@ app.post('/api/docker', async (req, res) => {
 
         switch (action) {
             case 'pull':
-                command = `cd ${composePath || '/root/fetchr'} && git pull`;
+                command = `cd ${composePath || '/home/ubuntu/fetchr'} && git pull`;
                 break;
             case 'recompose':
-                command = `cd ${composePath || '/root/fetchr'} && docker compose up --build -d`;
+                command = `cd ${composePath || '/home/ubuntu/fetchr'} && docker compose up --build -d`;
                 break;
             case 'start-all':
-                command = 'cd /root/fetchr && docker compose start';
+                command = 'cd /home/ubuntu/fetchr && docker compose start';
                 break;
             case 'restart-all':
-                command = 'cd /root/fetchr && docker compose restart';
+                command = 'cd /home/ubuntu/fetchr && docker compose restart';
                 break;
             case 'stop-all':
-                command = 'cd /root/fetchr && docker compose stop';
+                command = 'cd /home/ubuntu/fetchr && docker compose stop';
                 break;
             case 'status':
-                command = 'cd /root/fetchr && docker compose ps';
+                command = 'cd /home/ubuntu/fetchr && docker compose ps';
                 break;
             default:
                 return res.status(400).json({ error: 'Action non valide' });
@@ -340,6 +360,50 @@ app.post('/api/docker', async (req, res) => {
             output: '',
             error: error.message
         });
+    } finally {
+        if (ssh) ssh.dispose();
+    }
+});
+
+// Endpoint pour les stats Docker (CPU/RAM)
+app.get('/api/docker/stats', async (req, res) => {
+    let ssh;
+    try {
+        ssh = await connectToServer();
+        const result = await execSSHCommand(ssh, 'docker stats --no-stream --format "{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}"');
+        if (result) {
+            const containers = result.split('\n').filter(l => l.trim()).map(line => {
+                const [name, cpu, mem] = line.split('|');
+                return { name, cpu, mem };
+            });
+            res.json({ containers });
+        } else {
+            res.json({ containers: [] });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message, containers: [] });
+    } finally {
+        if (ssh) ssh.dispose();
+    }
+});
+
+// Endpoint pour l'historique Git
+app.get('/api/git/history', async (req, res) => {
+    let ssh;
+    try {
+        ssh = await connectToServer();
+        const result = await execSSHCommand(ssh, 'cd /home/ubuntu/fetchr && git log --oneline -20 --format="%h|%s|%cr|%an"');
+        if (result) {
+            const commits = result.split('\n').filter(l => l.trim()).map(line => {
+                const [hash, msg, date, author] = line.split('|');
+                return { hash, msg, date, author };
+            });
+            res.json({ commits });
+        } else {
+            res.json({ commits: [] });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message, commits: [] });
     } finally {
         if (ssh) ssh.dispose();
     }

@@ -27,6 +27,8 @@
         </div>
     </div>
 
+    <!-- Layout -->
+    <div class="app-layout">
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-section">
@@ -165,7 +167,7 @@
                     <div class="card-body">
                         <div class="form-group">
                             <label>Chemin local</label>
-                            <input type="text" id="local-path" placeholder="/chemin/vers/fetchr" value="/workspace/Horzyon__fetchr">
+                            <input type="text" id="local-path" placeholder="/chemin/vers/fetchr" value="/home/ubuntu/fetchr">
                         </div>
                         <div class="form-group">
                             <label>Message de commit</label>
@@ -197,7 +199,7 @@
                     <div class="card-body">
                         <div class="form-group">
                             <label>Adresse IP / Hostname</label>
-                            <input type="text" id="server-ip" placeholder="root@fetchr.fr" value="root@fetchr.fr">
+                            <input type="text" id="server-ip" placeholder="ubuntu@152.228.137.122" value="ubuntu@152.228.137.122">
                         </div>
                         <div class="form-group">
                             <label>Port SSH</label>
@@ -205,7 +207,7 @@
                         </div>
                         <div class="form-group">
                             <label>Chemin Docker Compose</label>
-                            <input type="text" id="docker-path" placeholder="/root/fetchr" value="/root/fetchr">
+                            <input type="text" id="docker-path" placeholder="/home/ubuntu/fetchr" value="/home/ubuntu/fetchr">
                         </div>
                         <div class="button-group">
                             <button class="btn btn-info" id="pull-btn">
@@ -230,25 +232,25 @@
                     <div class="card-body">
                         <div class="container-list" id="container-list">
                             <div class="container-item">
-                                <span class="container-name">fetchr_backend</span>
+                                <span class="container-name">fetchr-backend-1</span>
                                 <span class="container-status led led-red" id="container-backend-status"></span>
                                 <span class="container-action">
-                                    <button class="btn-icon-small" title="Redémarrer">
+                                    <button class="btn-icon-small" title="Redémarrer" onclick="restartContainer('backend')">
                                         <i class="fas fa-sync-alt"></i>
                                     </button>
-                                    <button class="btn-icon-small" title="Logs">
+                                    <button class="btn-icon-small" title="Logs" onclick="viewLogs('backend')">
                                         <i class="fas fa-file-alt"></i>
                                     </button>
                                 </span>
                             </div>
                             <div class="container-item">
-                                <span class="container-name">fetchr_frontend</span>
-                                <span class="container-status led led-red" id="container-frontend-status"></span>
+                                <span class="container-name">fetchr-caddy-1</span>
+                                <span class="container-status led led-red" id="container-caddy-status"></span>
                                 <span class="container-action">
-                                    <button class="btn-icon-small" title="Redémarrer">
+                                    <button class="btn-icon-small" title="Redémarrer" onclick="restartContainer('caddy')">
                                         <i class="fas fa-sync-alt"></i>
                                     </button>
-                                    <button class="btn-icon-small" title="Logs">
+                                    <button class="btn-icon-small" title="Logs" onclick="viewLogs('caddy')">
                                         <i class="fas fa-file-alt"></i>
                                     </button>
                                 </span>
@@ -406,6 +408,8 @@
             </div>
         </div>
     </div>
+
+    </div><!-- end app-layout -->
 
     <!-- Connection Modal -->
     <div id="connect-modal" class="modal">
