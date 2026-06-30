@@ -8,11 +8,26 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- Login Overlay -->
+    <div id="login-overlay" style="display:none;position:fixed;inset:0;background:#0a0a0f;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+        <div style="background:#14141f;border:1px solid #2a2a3a;border-radius:12px;padding:40px;width:100%;max-width:360px;">
+            <h2 style="font-family:sans-serif;color:#e8e8f0;margin-bottom:8px;font-size:1.3rem;">Fetchr Admin</h2>
+            <p style="color:#6b6b80;font-size:0.85rem;margin-bottom:24px;">Connexion au panneau d'administration</p>
+            <form id="login-form">
+                <input id="login-username" type="text" placeholder="Username" required style="width:100%;padding:12px;margin-bottom:12px;background:#0a0a0f;border:1px solid #2a2a3a;border-radius:8px;color:#e8e8f0;font-size:0.9rem;outline:none;">
+                <input id="login-password" type="password" placeholder="Password" required style="width:100%;padding:12px;margin-bottom:16px;background:#0a0a0f;border:1px solid #2a2a3a;border-radius:8px;color:#e8e8f0;font-size:0.9rem;outline:none;">
+                <button type="submit" style="width:100%;padding:12px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;">Se connecter</button>
+                <p id="login-error" style="color:#ef4444;font-size:0.8rem;margin-top:12px;text-align:center;"></p>
+            </form>
+        </div>
+    </div>
+
     <!-- Top Bar -->
     <div class="top-bar">
         <div class="logo">
             <i class="fas fa-server"></i>
             <span>Fetchr Server Manager</span>
+            <span id="mode-badge" style="margin-left:10px;font-size:0.65rem;padding:2px 8px;border-radius:4px;background:#6366f1;color:#fff;font-weight:600;text-transform:uppercase;">--</span>
         </div>
         <div class="top-bar-actions">
             <button class="btn-icon" title="Rafraîchir" id="refresh-all-btn">
@@ -69,6 +84,10 @@
             <div class="status-indicator">
                 <span class="label">Docker</span>
                 <span class="led led-red" id="docker-status"></span>
+            </div>
+            <div class="status-indicator">
+                <span class="label">Cookies</span>
+                <span class="led led-red" id="cookie-status"></span>
             </div>
         </div>
     </div>
@@ -166,8 +185,11 @@
                     </div>
                     <div class="card-body">
                         <div class="form-group">
-                            <label>Chemin local</label>
-                            <input type="text" id="local-path" placeholder="/chemin/vers/fetchr" value="/home/ubuntu/fetchr">
+                            <label>Push depuis</label>
+                            <select id="git-source">
+                                <option value="local">Local (ce PC)</option>
+                                <option value="server">Serveur (VPS)</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Message de commit</label>
@@ -181,9 +203,14 @@
                                 <option value="feature">feature</option>
                             </select>
                         </div>
-                        <button class="btn btn-primary" id="push-btn">
-                            <i class="fas fa-upload"></i> Pusher vers GitHub
-                        </button>
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="push-btn">
+                                <i class="fas fa-upload"></i> Push
+                            </button>
+                            <button class="btn btn-success" id="pull-server-btn">
+                                <i class="fas fa-download"></i> Pull sur serveur
+                            </button>
+                        </div>
                         <div class="status-bar" id="git-status">
                             <span class="status-text">Prêt</span>
                         </div>
@@ -402,6 +429,37 @@
                         </div>
                         <button class="btn btn-success" id="save-cloudflare-btn">
                             <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                    </div>
+                    <div class="config-section">
+                        <h3><i class="fas fa-rocket"></i> Mettre à jour le Panel Admin</h3>
+                        <p style="color:#6b6b80;font-size:0.85rem;margin-bottom:12px;">Commit + Push + Pull sur VPS + Restart du service admin.fetchr.fr</p>
+                        <div class="form-group">
+                            <label>Message de commit (optionnel)</label>
+                            <input type="text" id="deploy-msg" placeholder="Admin panel update...">
+                        </div>
+                        <button class="btn btn-warning" id="deploy-btn" style="width:100%;">
+                            <i class="fas fa-rocket"></i> Update & Deploy
+                        </button>
+                        <div id="deploy-output" style="margin-top:12px;display:none;background:#0a0a0f;border:1px solid #2a2a3a;border-radius:8px;padding:12px;font-family:monospace;font-size:0.8rem;color:#e8e8f0;max-height:200px;overflow-y:auto;"></div>
+                    </div>
+                    <div class="config-section">
+                        <h3><i class="fas fa-lock"></i> Changer le mot de passe</h3>
+                        <div class="form-group">
+                            <label>Mot de passe actuel</label>
+                            <input type="password" id="current-password" placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label>Nouveau mot de passe</label>
+                            <input type="password" id="new-password" placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirmer le nouveau mot de passe</label>
+                            <input type="password" id="confirm-new-password" placeholder="••••••••">
+                        </div>
+                        <p id="password-message" style="margin-bottom:10px;font-size:0.85rem;display:none;"></p>
+                        <button class="btn btn-primary" id="change-password-btn">
+                            <i class="fas fa-key"></i> Changer le mot de passe
                         </button>
                     </div>
                 </div>

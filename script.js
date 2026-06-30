@@ -1,4 +1,90 @@
-const API_BASE = 'http://localhost:3001';
+const API_BASE = window.location.origin;
+
+// ===== Auth =====
+let authToken = localStorage.getItem('admin_token');
+
+function getHeaders(extra = {}) {
+    const headers = { 'Content-Type': 'application/json', ...extra };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    return headers;
+}
+
+async function authFetch(url, options = {}) {
+    options.headers = getHeaders(options.headers || {});
+    const res = await fetch(url, options);
+    if (res.status === 401) {
+        localStorage.removeItem('admin_token');
+        authToken = null;
+        showLoginScreen();
+        throw new Error('Session expirée');
+    }
+    return res;
+}
+
+function showLoginScreen() {
+    document.getElementById('login-overlay').style.display = 'flex';
+    document.querySelector('.top-bar').style.display = 'none';
+    document.querySelector('.app-layout').style.display = 'none';
+}
+
+function hideLoginScreen() {
+    document.getElementById('login-overlay').style.display = 'none';
+    document.querySelector('.top-bar').style.display = '';
+    document.querySelector('.app-layout').style.display = '';
+}
+
+async function checkAuth() {
+    if (!authToken) { showLoginScreen(); return; }
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/check`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        document.getElementById('mode-badge').textContent = data.mode === 'server' ? 'VPS' : 'Desktop';
+        hideLoginScreen();
+    } catch {
+        localStorage.removeItem('admin_token');
+        authToken = null;
+        showLoginScreen();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            errorEl.textContent = '';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                if (!res.ok) {
+                    const data = await res.json();
+                    errorEl.textContent = data.error || 'Erreur de connexion';
+                    return;
+                }
+                const data = await res.json();
+                authToken = data.token;
+                localStorage.setItem('admin_token', authToken);
+                document.getElementById('mode-badge').textContent = data.mode === 'server' ? 'VPS' : 'Desktop';
+                hideLoginScreen();
+                fetchAllStats();
+                fetchDockerStatus();
+            } catch (err) {
+                errorEl.textContent = 'Erreur réseau';
+            }
+        });
+    }
+    checkAuth();
+});
 
 // ===== DOM Elements =====
 const pushBtn = document.getElementById('push-btn');
@@ -85,7 +171,7 @@ function updateStatusBar(element, message, type = 'info') {
 // ===== API: Stats =====
 async function fetchAllStats() {
     try {
-        const response = await fetch(`${API_BASE}/api/stats`);
+        const response = await authFetch(`${API_BASE}/api/stats`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
 
@@ -108,8 +194,8 @@ async function fetchAllStats() {
             cloudflareVisits.textContent = data.cloudflare.uniqueVisitors || '--';
         }
 
-        updateStatusLed(githubStatusLed, 'green');
         addLog('Statistiques mises à jour', 'success');
+        checkGitSync();
     } catch (error) {
         addLog(`Erreur stats: ${error.message}`, 'error');
         updateStatusLed(serverStatusLed, 'red');
@@ -117,10 +203,29 @@ async function fetchAllStats() {
     }
 }
 
+// ===== API: Git Sync Check =====
+async function checkGitSync() {
+    try {
+        const response = await authFetch(`${API_BASE}/api/git/sync-status`);
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        if (data.synced) {
+            updateStatusLed(githubStatusLed, 'green');
+        } else {
+            updateStatusLed(githubStatusLed, 'orange');
+            if (data.behind > 0) {
+                addLog(`Git: ${data.behind} commit(s) en retard sur origin/master`, 'warning');
+            }
+        }
+    } catch {
+        updateStatusLed(githubStatusLed, 'green');
+    }
+}
+
 // ===== API: Docker =====
 async function fetchDockerStatus() {
     try {
-        const response = await fetch(`${API_BASE}/api/docker`, {
+        const response = await authFetch(`${API_BASE}/api/docker`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'status' })
@@ -148,7 +253,7 @@ async function fetchDockerStatus() {
 
 async function fetchDockerStats() {
     try {
-        const response = await fetch(`${API_BASE}/api/docker/stats`);
+        const response = await authFetch(`${API_BASE}/api/docker/stats`);
         const data = await response.json();
 
         if (data.containers && data.containers.length > 0) {
@@ -166,7 +271,7 @@ async function execDockerAction(action) {
     const composePath = document.getElementById('docker-path').value;
     addLog(`Docker: ${action}...`, 'info');
     try {
-        const response = await fetch(`${API_BASE}/api/docker`, {
+        const response = await authFetch(`${API_BASE}/api/docker`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action, composePath })
@@ -188,7 +293,7 @@ async function execDockerAction(action) {
 async function restartContainer(service) {
     addLog(`Redémarrage de ${service}...`, 'info');
     try {
-        const response = await fetch(`${API_BASE}/api/ssh`, {
+        const response = await authFetch(`${API_BASE}/api/ssh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ command: `cd /home/ubuntu/fetchr && docker compose restart ${service}` })
@@ -204,7 +309,7 @@ async function restartContainer(service) {
 async function viewLogs(service) {
     addLog(`Récupération logs ${service}...`, 'info');
     try {
-        const response = await fetch(`${API_BASE}/api/ssh`, {
+        const response = await authFetch(`${API_BASE}/api/ssh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ command: `cd /home/ubuntu/fetchr && docker compose logs --tail=30 ${service}` })
@@ -227,21 +332,22 @@ async function viewLogs(service) {
 }
 
 // ===== API: Git =====
-async function execGitAction(action, message, branch) {
-    addLog(`Git ${action}...`, 'info');
-    updateStatusBar(gitStatusBar, `${action} en cours...`, 'info');
+async function execGitAction(action, message, branch, source) {
+    const sourceLabel = source === 'local' ? 'Local' : 'Serveur';
+    addLog(`Git ${action} (${sourceLabel})...`, 'info');
+    updateStatusBar(gitStatusBar, `${action} en cours (${sourceLabel})...`, 'info');
     try {
-        const response = await fetch(`${API_BASE}/api/git`, {
+        const response = await authFetch(`${API_BASE}/api/git`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, message, branch })
+            body: JSON.stringify({ action, message, branch, source })
         });
         const data = await response.json();
         if (data.error) {
             addLog(`Git ${action}: ${data.error}`, 'error');
             updateStatusBar(gitStatusBar, data.error, 'error');
         } else {
-            addLog(`Git ${action} réussi`, 'success');
+            addLog(`Git ${action} (${sourceLabel}) réussi`, 'success');
             updateStatusBar(gitStatusBar, `${action} réussi !`, 'success');
             if (data.output) addLog(data.output, 'info');
         }
@@ -253,7 +359,7 @@ async function execGitAction(action, message, branch) {
 
 async function fetchGitHistory() {
     try {
-        const response = await fetch(`${API_BASE}/api/git/history`);
+        const response = await authFetch(`${API_BASE}/api/git/history`);
         const data = await response.json();
         const gitHistory = document.getElementById('git-history');
         gitHistory.innerHTML = '';
@@ -279,7 +385,7 @@ async function fetchGitHistory() {
 // ===== API: Terminal SSH =====
 async function execSSHCommand(command) {
     try {
-        const response = await fetch(`${API_BASE}/api/ssh`, {
+        const response = await authFetch(`${API_BASE}/api/ssh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ command })
@@ -316,15 +422,18 @@ tabLinks.forEach(link => {
 pushBtn.addEventListener('click', () => {
     const commitMsg = document.getElementById('commit-msg').value.trim();
     const branch = document.getElementById('git-branch').value;
+    const source = document.getElementById('git-source').value;
     if (!commitMsg) {
         updateStatusBar(gitStatusBar, 'Message de commit vide !', 'error');
         addLog('Erreur: Message de commit vide', 'error');
         return;
     }
-    execGitAction('push', commitMsg, branch);
+    execGitAction('push', commitMsg, branch, source);
 });
 
-pullBtn.addEventListener('click', () => execGitAction('pull'));
+const pullServerBtn = document.getElementById('pull-server-btn');
+pullServerBtn.addEventListener('click', () => execGitAction('pull', null, null, 'server'));
+pullBtn.addEventListener('click', () => execGitAction('pull', null, null, 'server'));
 recomposeBtn.addEventListener('click', () => execDockerAction('recompose'));
 
 // Docker
@@ -392,19 +501,129 @@ window.addEventListener('click', (e) => { if (e.target === connectModal) connect
 
 // Logout
 logoutBtn.addEventListener('click', () => {
-    updateStatusLed(githubStatusLed, 'red');
-    updateStatusLed(serverStatusLed, 'red');
-    updateStatusLed(dockerStatusLed, 'red');
-    updateStatusLed(containerBackendStatus, 'red');
-    updateStatusLed(containerCaddyStatus, 'red');
-    serverCpu.textContent = '--%';
-    serverRam.textContent = '--%';
-    serverDisk.textContent = '--%';
-    serverUptime.textContent = '--';
-    activeContainers.textContent = '0/2';
-    addLog('Déconnecté', 'info');
-    updateStatusBar(serverStatusBar, 'Déconnecté', 'error');
+    localStorage.removeItem('admin_token');
+    authToken = null;
+    showLoginScreen();
 });
+
+// ===== Deploy =====
+document.getElementById('deploy-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('deploy-btn');
+    const output = document.getElementById('deploy-output');
+    const msg = document.getElementById('deploy-msg').value.trim();
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Déploiement en cours...';
+    output.style.display = 'block';
+    output.innerHTML = '<span style="color:#6366f1;">⏳ Lancement du déploiement...</span>\n';
+
+    try {
+        const res = await authFetch(`${API_BASE}/api/deploy`, {
+            method: 'POST',
+            body: JSON.stringify({ message: msg || undefined })
+        });
+        const data = await res.json();
+
+        output.innerHTML = '';
+        const icons = { ok: '✅', skipped: '⏭️', error: '❌' };
+        const labels = { commit: 'Commit', push: 'Push', pull: 'Pull serveur', restart: 'Restart service', install: 'Install deps' };
+
+        data.steps.forEach(s => {
+            const icon = icons[s.status] || '❓';
+            const label = labels[s.step] || s.step;
+            output.innerHTML += `${icon} <strong>${label}</strong>: ${s.output || s.status}\n`;
+        });
+
+        if (data.success) {
+            output.innerHTML += '\n<span style="color:#22c55e;">🎉 Déploiement terminé avec succès !</span>';
+            addLog('Déploiement complet réussi', 'success');
+        } else {
+            output.innerHTML += '\n<span style="color:#ef4444;">⚠️ Déploiement échoué à une étape.</span>';
+            addLog('Déploiement échoué', 'error');
+        }
+    } catch (err) {
+        output.innerHTML = `<span style="color:#ef4444;">❌ Erreur: ${err.message}</span>`;
+        addLog(`Erreur déploiement: ${err.message}`, 'error');
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-rocket"></i> Déployer maintenant';
+    fetchAllStats();
+    fetchDockerStatus();
+});
+
+// ===== Change Password =====
+document.getElementById('change-password-btn').addEventListener('click', async () => {
+    const current = document.getElementById('current-password').value;
+    const newPwd = document.getElementById('new-password').value;
+    const confirm = document.getElementById('confirm-new-password').value;
+    const msg = document.getElementById('password-message');
+
+    msg.style.display = 'none';
+
+    if (!current || !newPwd || !confirm) {
+        msg.style.display = 'block';
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Remplis tous les champs.';
+        return;
+    }
+    if (newPwd !== confirm) {
+        msg.style.display = 'block';
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Les mots de passe ne correspondent pas.';
+        return;
+    }
+    if (newPwd.length < 6) {
+        msg.style.display = 'block';
+        msg.style.color = '#ef4444';
+        msg.textContent = 'Minimum 6 caractères.';
+        return;
+    }
+
+    try {
+        const res = await authFetch(`${API_BASE}/api/auth/change-password`, {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword: current, newPassword: newPwd })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Erreur');
+        }
+        msg.style.display = 'block';
+        msg.style.color = '#22c55e';
+        msg.textContent = 'Mot de passe changé avec succès !';
+        document.getElementById('current-password').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-new-password').value = '';
+    } catch (err) {
+        msg.style.display = 'block';
+        msg.style.color = '#ef4444';
+        msg.textContent = err.message;
+    }
+});
+
+// ===== API: Fetchr Health (Cookies) =====
+async function checkCookieStatus() {
+    try {
+        const response = await authFetch(`${API_BASE}/api/fetchr/health`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const cookieLed = document.getElementById('cookie-status');
+        if (!cookieLed) return;
+
+        if (data.status === 'unreachable') {
+            updateStatusLed(cookieLed, 'red');
+            addLog('Backend injoignable — impossible de vérifier les cookies', 'error');
+        } else if (data.cookies_expired) {
+            updateStatusLed(cookieLed, 'orange');
+            addLog('⚠️ Cookies YouTube expirés ! Lance refresh-cookies.sh', 'warning');
+        } else {
+            updateStatusLed(cookieLed, 'green');
+        }
+    } catch {
+        // silent
+    }
+}
 
 // ===== Initialization =====
 addLog('Démarrage de Fetchr Server Manager...', 'info');
@@ -413,9 +632,11 @@ addTerminalLine('', 'prompt');
 fetchAllStats();
 fetchDockerStatus();
 fetchDockerStats();
+checkCookieStatus();
 
 setInterval(() => {
     fetchAllStats();
     fetchDockerStatus();
     fetchDockerStats();
+    checkCookieStatus();
 }, 30000);
