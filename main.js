@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 3001;
 const MODE = process.env.ADMIN_MODE || 'remote';
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const FETCHR_PATH = MODE === 'server' ? '/home/ubuntu/fetchr' : '/home/horzyon/Projets/video-downloader';
+const VPS_FETCHR_PATH = '/home/ubuntu/fetchr';
 
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -236,26 +237,27 @@ app.post('/api/docker', authMiddleware, async (req, res) => {
     if (!action) return res.status(400).json({ error: 'Action manquante' });
 
     try {
-        const dockerPath = composePath || FETCHR_PATH;
+        const dockerPath = composePath || (MODE === 'server' ? FETCHR_PATH : VPS_FETCHR_PATH);
+        const composeFile = '-f docker-compose.prod.yml';
         let command;
         switch (action) {
             case 'pull':
                 command = `cd ${dockerPath} && git pull`;
                 break;
             case 'recompose':
-                command = `cd ${dockerPath} && docker compose up --build -d`;
+                command = `cd ${dockerPath} && docker compose ${composeFile} up --build -d`;
                 break;
             case 'start-all':
-                command = `cd ${dockerPath} && docker compose start`;
+                command = `cd ${dockerPath} && docker compose ${composeFile} start`;
                 break;
             case 'restart-all':
-                command = `cd ${dockerPath} && docker compose restart`;
+                command = `cd ${dockerPath} && docker compose ${composeFile} restart`;
                 break;
             case 'stop-all':
-                command = `cd ${dockerPath} && docker compose stop`;
+                command = `cd ${dockerPath} && docker compose ${composeFile} stop`;
                 break;
             case 'status':
-                command = `cd ${dockerPath} && docker compose ps`;
+                command = `cd ${dockerPath} && docker compose ${composeFile} ps`;
                 break;
             default:
                 return res.status(400).json({ error: 'Action non valide' });
@@ -286,11 +288,12 @@ app.get('/api/docker/stats', authMiddleware, async (req, res) => {
 
 app.get('/api/git/sync-status', authMiddleware, async (req, res) => {
     try {
-        await runCommand(`cd ${FETCHR_PATH} && git fetch origin 2>/dev/null`);
-        const local = await runCommand(`cd ${FETCHR_PATH} && git rev-parse HEAD`);
-        const remote = await runCommand(`cd ${FETCHR_PATH} && git rev-parse origin/master`);
-        const behind = await runCommand(`cd ${FETCHR_PATH} && git rev-list HEAD..origin/master --count`);
-        const ahead = await runCommand(`cd ${FETCHR_PATH} && git rev-list origin/master..HEAD --count`);
+        const gitPath = MODE === 'server' ? FETCHR_PATH : VPS_FETCHR_PATH;
+        await runCommand(`cd ${gitPath} && git fetch origin 2>/dev/null`);
+        const local = await runCommand(`cd ${gitPath} && git rev-parse HEAD`);
+        const remote = await runCommand(`cd ${gitPath} && git rev-parse origin/master`);
+        const behind = await runCommand(`cd ${gitPath} && git rev-list HEAD..origin/master --count`);
+        const ahead = await runCommand(`cd ${gitPath} && git rev-list origin/master..HEAD --count`);
         res.json({
             local: local.trim(),
             remote: remote.trim(),
@@ -305,7 +308,8 @@ app.get('/api/git/sync-status', authMiddleware, async (req, res) => {
 
 app.get('/api/git/history', authMiddleware, async (req, res) => {
     try {
-        const result = await runCommand(`cd ${FETCHR_PATH} && git log --oneline -20 --format="%h|%s|%cr|%an"`);
+        const gitPath = MODE === 'server' ? FETCHR_PATH : VPS_FETCHR_PATH;
+        const result = await runCommand(`cd ${gitPath} && git log --oneline -20 --format="%h|%s|%cr|%an"`);
         if (result) {
             const commits = result.split('\n').filter(l => l.trim()).map(line => {
                 const [hash, msg, date, author] = line.split('|');
