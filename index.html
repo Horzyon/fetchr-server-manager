@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetchr - Server Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="logo">
+            <i class="fas fa-server"></i>
+            <span>Fetchr Server Manager</span>
+        </div>
+        <div class="top-bar-actions">
+            <button class="btn-icon" title="Rafraîchir" id="refresh-all-btn">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="btn-icon" title="Paramètres" id="settings-btn">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button class="btn-icon" title="Déconnexion" id="logout-btn">
+                <i class="fas fa-power-off"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-section">
+            <h3>Navigation</h3>
+            <ul>
+                <li class="active" data-tab="dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Tableau de bord</span>
+                </li>
+                <li data-tab="git">
+                    <i class="fas fa-code-branch"></i>
+                    <span>Git Deploy</span>
+                </li>
+                <li data-tab="docker">
+                    <i class="fas fa-cube"></i>
+                    <span>Docker</span>
+                </li>
+                <li data-tab="terminal">
+                    <i class="fas fa-terminal"></i>
+                    <span>Terminal</span>
+                </li>
+                <li data-tab="config">
+                    <i class="fas fa-cogs"></i>
+                    <span>Configuration</span>
+                </li>
+            </ul>
+        </div>
+        <div class="sidebar-section">
+            <h3>Statut</h3>
+            <div class="status-indicator">
+                <span class="label">GitHub</span>
+                <span class="led led-red" id="github-status"></span>
+            </div>
+            <div class="status-indicator">
+                <span class="label">Serveur</span>
+                <span class="led led-red" id="server-status"></span>
+            </div>
+            <div class="status-indicator">
+                <span class="label">Docker</span>
+                <span class="led led-red" id="docker-status"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Dashboard Tab -->
+        <div class="tab-content active" id="dashboard-tab">
+            <div class="dashboard-grid">
+                <!-- Server Stats Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-line"></i>
+                        <h2>Statistiques Serveur</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <i class="fas fa-microchip"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">CPU</span>
+                                    <span class="stat-value" id="server-cpu">--%</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fas fa-memory"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">RAM</span>
+                                    <span class="stat-value" id="server-ram">--%</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fas fa-hdd"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Disk</span>
+                                    <span class="stat-value" id="server-disk">--%</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fas fa-clock"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Uptime</span>
+                                    <span class="stat-value" id="server-uptime">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Business Stats Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar"></i>
+                        <h2>Statistiques Business</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <i class="fas fa-shopping-cart"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Ventes (Stripe)</span>
+                                    <span class="stat-value" id="stripe-sales">--</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fas fa-euro-sign"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Revenus</span>
+                                    <span class="stat-value" id="stripe-revenue">-- €</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fas fa-users"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Abonnements</span>
+                                    <span class="stat-value" id="stripe-subscriptions">--</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="fas fa-globe"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Visites (Cloudflare)</span>
+                                    <span class="stat-value" id="cloudflare-visits">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Git Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-code-branch"></i>
+                        <h2>Déploiement Git</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Chemin local</label>
+                            <input type="text" id="local-path" placeholder="/chemin/vers/fetchr" value="/workspace/Horzyon__fetchr">
+                        </div>
+                        <div class="form-group">
+                            <label>Message de commit</label>
+                            <textarea id="commit-msg" placeholder="Décrivez vos modifications..." rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Branche</label>
+                            <select id="git-branch">
+                                <option value="master">master</option>
+                                <option value="dev">dev</option>
+                                <option value="feature">feature</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="push-btn">
+                            <i class="fas fa-upload"></i> Pusher vers GitHub
+                        </button>
+                        <div class="status-bar" id="git-status">
+                            <span class="status-text">Prêt</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-server"></i>
+                        <h2>Serveur Distant</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Adresse IP / Hostname</label>
+                            <input type="text" id="server-ip" placeholder="root@fetchr.fr" value="root@fetchr.fr">
+                        </div>
+                        <div class="form-group">
+                            <label>Port SSH</label>
+                            <input type="number" id="ssh-port" placeholder="22" value="22">
+                        </div>
+                        <div class="form-group">
+                            <label>Chemin Docker Compose</label>
+                            <input type="text" id="docker-path" placeholder="/root/fetchr" value="/root/fetchr">
+                        </div>
+                        <div class="button-group">
+                            <button class="btn btn-info" id="pull-btn">
+                                <i class="fas fa-download"></i> Pull
+                            </button>
+                            <button class="btn btn-warning" id="recompose-btn">
+                                <i class="fas fa-redo"></i> Recomposer
+                            </button>
+                        </div>
+                        <div class="status-bar" id="server-status-bar">
+                            <span class="status-text">Non connecté</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Docker Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-cube"></i>
+                        <h2>Conteneurs Docker</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="container-list" id="container-list">
+                            <div class="container-item">
+                                <span class="container-name">fetchr_backend</span>
+                                <span class="container-status led led-red" id="container-backend-status"></span>
+                                <span class="container-action">
+                                    <button class="btn-icon-small" title="Redémarrer">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                    <button class="btn-icon-small" title="Logs">
+                                        <i class="fas fa-file-alt"></i>
+                                    </button>
+                                </span>
+                            </div>
+                            <div class="container-item">
+                                <span class="container-name">fetchr_frontend</span>
+                                <span class="container-status led led-red" id="container-frontend-status"></span>
+                                <span class="container-action">
+                                    <button class="btn-icon-small" title="Redémarrer">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                    <button class="btn-icon-small" title="Logs">
+                                        <i class="fas fa-file-alt"></i>
+                                    </button>
+                                </span>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" id="refresh-containers-btn">
+                            <i class="fas fa-sync-alt"></i> Rafraîchir
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Logs Card -->
+                <div class="card card-full">
+                    <div class="card-header">
+                        <i class="fas fa-terminal"></i>
+                        <h2>Logs en temps réel</h2>
+                        <button class="btn-icon-small" id="clear-logs-btn" title="Effacer">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="terminal" id="logs">
+                            <p class="log-line">[--:--:--] <span class="log-info">Démarrage de Fetchr Server Manager...</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Git Tab -->
+        <div class="tab-content" id="git-tab">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-code-branch"></i>
+                    <h2>Historique Git</h2>
+                </div>
+                <div class="card-body">
+                    <div class="git-history" id="git-history">
+                        <div class="commit">
+                            <div class="commit-hash">abc1234</div>
+                            <div class="commit-msg">Fix video download bug</div>
+                            <div class="commit-meta">Horzyon &bull; il y a 2 heures</div>
+                        </div>
+                        <div class="commit">
+                            <div class="commit-hash">def5678</div>
+                            <div class="commit-msg">Add TikTok support</div>
+                            <div class="commit-meta">Horzyon &bull; il y a 1 jour</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Docker Tab -->
+        <div class="tab-content" id="docker-tab">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-cube"></i>
+                    <h2>Gestion Docker</h2>
+                </div>
+                <div class="card-body">
+                    <div class="docker-actions">
+                        <button class="btn btn-primary" id="start-all-btn">
+                            <i class="fas fa-play"></i> Démarrer tout
+                        </button>
+                        <button class="btn btn-warning" id="restart-all-btn">
+                            <i class="fas fa-redo"></i> Redémarrer tout
+                        </button>
+                        <button class="btn btn-danger" id="stop-all-btn">
+                            <i class="fas fa-stop"></i> Arrêter tout
+                        </button>
+                    </div>
+                    <div class="docker-stats" id="docker-stats">
+                        <div class="stat">
+                            <span class="stat-label">Conteneurs actifs</span>
+                            <span class="stat-value" id="active-containers">0/2</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">CPU</span>
+                            <span class="stat-value" id="docker-cpu">0%</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">RAM</span>
+                            <span class="stat-value" id="docker-ram">0 MB</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Tab -->
+        <div class="tab-content" id="terminal-tab">
+            <div class="card card-full">
+                <div class="card-header">
+                    <i class="fas fa-terminal"></i>
+                    <h2>Terminal SSH</h2>
+                </div>
+                <div class="card-body">
+                    <div class="terminal-full" id="terminal">
+                        <p class="terminal-prompt">root@fetchr:~$ <span class="terminal-input"></span></p>
+                    </div>
+                    <div class="terminal-input-bar">
+                        <input type="text" id="terminal-input" placeholder="Entrez une commande..." autocomplete="off">
+                        <button class="btn btn-primary" id="terminal-send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config Tab -->
+        <div class="tab-content" id="config-tab">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-cogs"></i>
+                    <h2>Configuration</h2>
+                </div>
+                <div class="card-body">
+                    <div class="config-section">
+                        <h3>Connexion SSH</h3>
+                        <div class="form-group">
+                            <label>Chemin de la clé privée SSH</label>
+                            <input type="text" id="ssh-key-path" placeholder="~/.ssh/id_rsa" value="~/.ssh/id_rsa">
+                        </div>
+                        <button class="btn btn-success" id="save-ssh-btn">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                    </div>
+                    <div class="config-section">
+                        <h3>API Stripe</h3>
+                        <div class="form-group">
+                            <label>Clé secrète Stripe</label>
+                            <input type="password" id="stripe-api-key" placeholder="sk_live_...">
+                        </div>
+                        <button class="btn btn-success" id="save-stripe-btn">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                    </div>
+                    <div class="config-section">
+                        <h3>API Cloudflare</h3>
+                        <div class="form-group">
+                            <label>Token API Cloudflare</label>
+                            <input type="password" id="cloudflare-api-token" placeholder="ton_api_token">
+                        </div>
+                        <div class="form-group">
+                            <label>Zone ID Cloudflare</label>
+                            <input type="text" id="cloudflare-zone-id" placeholder="0da42c8d2132a9ddaf714f9e7c920711">
+                        </div>
+                        <button class="btn btn-success" id="save-cloudflare-btn">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Modal -->
+    <div id="connect-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Connexion requise</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Pour utiliser toutes les fonctionnalités, veuillez configurer le chemin de votre clé SSH.</p>
+                <div class="form-group">
+                    <label>Chemin de la clé SSH</label>
+                    <input type="text" id="modal-ssh-key-path" placeholder="~/.ssh/id_rsa" value="~/.ssh/id_rsa">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-connect-btn">Annuler</button>
+                <button class="btn btn-primary" id="confirm-connect-btn">Se connecter</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

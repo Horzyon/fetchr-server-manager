@@ -1,0 +1,15 @@
+{
+  "server": {
+    "host": "fetchr.fr",
+    "port": 22,
+    "username": "root",
+    "privateKeyPath": "~/.ssh/id_rsa"
+  },
+  "stripe": {
+    "apiKey": "sk_live_..."
+  },
+  "cloudflare": {
+    "apiToken": "ton_api_token_cloudflare",
+    "zoneId": "0da42c8d2132a9ddaf714f9e7c920711"
+  }
+}
