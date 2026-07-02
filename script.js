@@ -58,7 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const username = document.getElementById('login-username').value;
             const password = document.getElementById('login-password').value;
             const errorEl = document.getElementById('login-error');
+            const btn = loginForm.querySelector('.login-btn');
             errorEl.textContent = '';
+
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fas fa-spinner"></i> Connexion...';
 
             try {
                 const res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -69,17 +73,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) {
                     const data = await res.json();
                     errorEl.textContent = data.error || 'Erreur de connexion';
+                    btn.classList.remove('loading');
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Se connecter';
                     return;
                 }
                 const data = await res.json();
                 authToken = data.token;
                 localStorage.setItem('admin_token', authToken);
                 document.getElementById('mode-badge').textContent = data.mode === 'server' ? 'VPS' : 'Desktop';
-                hideLoginScreen();
-                fetchAllStats();
-                fetchDockerStatus();
+
+                btn.classList.remove('loading');
+                btn.classList.add('success');
+                btn.innerHTML = '<i class="fas fa-check"></i> Connecté';
+
+                const overlay = document.getElementById('login-overlay');
+                overlay.style.animation = 'loginFadeOut 0.3s ease-out forwards';
+                setTimeout(() => {
+                    overlay.style.animation = '';
+                    hideLoginScreen();
+                    fetchAllStats();
+                    fetchDockerStatus();
+                }, 300);
             } catch (err) {
                 errorEl.textContent = 'Erreur réseau';
+                btn.classList.remove('loading');
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Se connecter';
             }
         });
     }
