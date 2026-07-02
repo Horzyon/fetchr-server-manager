@@ -3,6 +3,7 @@ node_modules/
 
 # Config files (contain sensitive data)
 config.json
+.auth.json
 
 # Environment variables
 .env

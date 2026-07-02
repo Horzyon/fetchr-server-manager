@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetchr - Server Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor"/>
+                </svg>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="sidebar-link active" data-tab="dashboard">
+                    <i class="fas fa-th-large"></i>
+                </a>
+                <a href="#" class="sidebar-link" data-tab="docker">
+                    <i class="fas fa-cube"></i>
+                </a>
+                <a href="#" class="sidebar-link" data-tab="deploy">
+                    <i class="fas fa-code-branch"></i>
+                </a>
+                <a href="#" class="sidebar-link" data-tab="terminal">
+                    <i class="fas fa-terminal"></i>
+                </a>
+                <a href="#" class="sidebar-link" data-tab="config">
+                    <i class="fas fa-sliders-h"></i>
+                </a>
+            </nav>
+            <div class="sidebar-foot">
+                <a href="#" class="sidebar-link"><i class="fas fa-power-off"></i></a>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <div class="main">
+            <!-- Top pills bar (like Haulix) -->
+            <header class="topbar">
+                <div class="pills">
+                    <div class="pill"><i class="fas fa-server"></i> Active <strong>2/2</strong></div>
+                    <div class="pill"><i class="fas fa-download"></i> Downloads <strong>23</strong></div>
+                    <div class="pill"><i class="fas fa-euro-sign"></i> Revenue <strong>234€</strong></div>
+                    <div class="pill"><i class="fas fa-eye"></i> Visits <strong>1.2k</strong></div>
+                </div>
+                <div class="topbar-right">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <span>Search...</span>
+                        <kbd>⌘K</kbd>
+                    </div>
+                    <div class="user-chip">
+                        <div class="user-avatar">H</div>
+                        <span>Horzyon</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content area -->
+            <div class="content">
+                <!-- === DASHBOARD TAB === -->
+                <div class="tab active" id="dashboard-tab">
+                    <div class="dashboard-layout">
+                        <!-- Left: Gauges + Overview -->
+                        <div class="dash-main">
+                            <!-- Title row -->
+                            <div class="section-header">
+                                <h1>Operations Dashboard</h1>
+                                <div class="header-meta">
+                                    <span class="date-label">Mardi 1 Juillet 2026</span>
+                                    <span class="dot-sep"></span>
+                                    <span class="uptime-chip">Uptime 14j 6h</span>
+                                </div>
+                            </div>
+
+                            <!-- Analog Gauges (like Haulix speedometer) -->
+                            <div class="gauges-row">
+                                <div class="gauge-box">
+                                    <div class="analog-gauge" data-value="23" data-max="100">
+                                        <div class="gauge-dial">
+                                            <div class="gauge-bg"></div>
+                                            <div class="gauge-fill" style="--angle: 41deg"></div>
+                                            <div class="gauge-needle" style="--rotation: 41deg"></div>
+                                            <div class="gauge-center"></div>
+                                        </div>
+                                        <div class="gauge-reading">
+                                            <span class="gauge-number">23</span>
+                                            <span class="gauge-unit">%</span>
+                                        </div>
+                                    </div>
+                                    <span class="gauge-title">CPU</span>
+                                </div>
+                                <div class="gauge-box">
+                                    <div class="analog-gauge" data-value="67" data-max="100">
+                                        <div class="gauge-dial">
+                                            <div class="gauge-bg"></div>
+                                            <div class="gauge-fill mid" style="--angle: 120deg"></div>
+                                            <div class="gauge-needle" style="--rotation: 120deg"></div>
+                                            <div class="gauge-center"></div>
+                                        </div>
+                                        <div class="gauge-reading">
+                                            <span class="gauge-number">67</span>
+                                            <span class="gauge-unit">%</span>
+                                        </div>
+                                    </div>
+                                    <span class="gauge-title">RAM</span>
+                                </div>
+                                <div class="gauge-box">
+                                    <div class="analog-gauge" data-value="42" data-max="100">
+                                        <div class="gauge-dial">
+                                            <div class="gauge-bg"></div>
+                                            <div class="gauge-fill" style="--angle: 75deg"></div>
+                                            <div class="gauge-needle" style="--rotation: 75deg"></div>
+                                            <div class="gauge-center"></div>
+                                        </div>
+                                        <div class="gauge-reading">
+                                            <span class="gauge-number">42</span>
+                                            <span class="gauge-unit">%</span>
+                                        </div>
+                                    </div>
+                                    <span class="gauge-title">Disk</span>
+                                </div>
+                            </div>
+
+                            <!-- Container Grid (like Haulix cargo slots) -->
+                            <div class="section-header small">
+                                <h2>Conteneurs Docker</h2>
+                                <div class="capacity-bar">
+                                    <div class="cap-fill" style="width: 100%"></div>
+                                    <span class="cap-text">2/2 actifs</span>
+                                </div>
+                            </div>
+
+                            <div class="container-grid">
+                                <div class="container-slot active" data-container="backend">
+                                    <div class="slot-header">
+                                        <span class="slot-id">CTN-001</span>
+                                        <span class="slot-badge running">Running</span>
+                                    </div>
+                                    <div class="slot-visual">
+                                        <div class="crate">
+                                            <div class="crate-front"></div>
+                                            <div class="crate-side"></div>
+                                            <div class="crate-top"></div>
+                                        </div>
+                                    </div>
+                                    <div class="slot-name">fetchr-backend-1</div>
+                                </div>
+                                <div class="container-slot active" data-container="caddy">
+                                    <div class="slot-header">
+                                        <span class="slot-id">CTN-002</span>
+                                        <span class="slot-badge running">Running</span>
+                                    </div>
+                                    <div class="slot-visual">
+                                        <div class="crate">
+                                            <div class="crate-front"></div>
+                                            <div class="crate-side"></div>
+                                            <div class="crate-top"></div>
+                                        </div>
+                                    </div>
+                                    <div class="slot-name">fetchr-caddy-1</div>
+                                </div>
+                                <div class="container-slot empty">
+                                    <div class="slot-header">
+                                        <span class="slot-id">CTN-003</span>
+                                        <span class="slot-badge">Empty</span>
+                                    </div>
+                                    <div class="slot-visual">
+                                        <div class="slot-empty-icon"><i class="fas fa-plus"></i></div>
+                                    </div>
+                                    <div class="slot-name">—</div>
+                                </div>
+                            </div>
+
+                            <!-- Deploy quick -->
+                            <div class="section-header small">
+                                <h2>Quick Deploy</h2>
+                            </div>
+                            <div class="deploy-card">
+                                <div class="deploy-row">
+                                    <input type="text" class="deploy-input" placeholder="Commit message...">
+                                    <button class="deploy-btn"><i class="fas fa-upload"></i> Push & Deploy</button>
+                                </div>
+                                <div class="deploy-status">
+                                    <span class="deploy-dot ok"></span>
+                                    <span>Last deploy: il y a 2h — success</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Sliding Detail Panel -->
+                        <div class="detail-panel" id="detail-panel">
+                            <div class="detail-header">
+                                <h3>fetchr-backend-1</h3>
+                                <button class="detail-close" id="detail-close"><i class="fas fa-times"></i></button>
+                            </div>
+                            <div class="detail-body">
+                                <div class="detail-status">
+                                    <span class="status-dot running"></span>
+                                    <span class="status-text">Running</span>
+                                    <span class="status-since">depuis 14 jours</span>
+                                </div>
+
+                                <div class="detail-section">
+                                    <label>Image</label>
+                                    <span class="detail-val mono">fetchr:latest</span>
+                                </div>
+                                <div class="detail-section">
+                                    <label>Port</label>
+                                    <span class="detail-val mono">0.0.0.0:3000 → 3000/tcp</span>
+                                </div>
+
+                                <div class="detail-section">
+                                    <label>CPU</label>
+                                    <div class="detail-meter">
+                                        <div class="meter-track"><div class="meter-bar" style="width: 32%"></div></div>
+                                        <span class="meter-val">3.2%</span>
+                                    </div>
+                                </div>
+                                <div class="detail-section">
+                                    <label>Memory</label>
+                                    <div class="detail-meter">
+                                        <div class="meter-track"><div class="meter-bar mem" style="width: 55%"></div></div>
+                                        <span class="meter-val">128 / 232 MB</span>
+                                    </div>
+                                </div>
+
+                                <div class="detail-actions">
+                                    <button class="act-btn"><i class="fas fa-redo"></i> Restart</button>
+                                    <button class="act-btn"><i class="fas fa-scroll"></i> Logs</button>
+                                    <button class="act-btn danger"><i class="fas fa-stop"></i> Stop</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === DOCKER TAB === -->
+                <div class="tab" id="docker-tab">
+                    <div class="section-header">
+                        <h1>Docker Containers</h1>
+                        <div class="header-actions">
+                            <button class="chip-btn green"><i class="fas fa-play"></i> Start All</button>
+                            <button class="chip-btn orange"><i class="fas fa-redo"></i> Restart</button>
+                            <button class="chip-btn red"><i class="fas fa-stop"></i> Stop All</button>
+                        </div>
+                    </div>
+
+                    <div class="docker-full-grid">
+                        <div class="docker-card" data-container="backend">
+                            <div class="docker-card-top">
+                                <div class="docker-card-status">
+                                    <span class="status-dot running"></span>
+                                    <strong>fetchr-backend-1</strong>
+                                </div>
+                                <span class="slot-badge running">Running</span>
+                            </div>
+                            <div class="docker-card-visual">
+                                <div class="crate big">
+                                    <div class="crate-front"></div>
+                                    <div class="crate-side"></div>
+                                    <div class="crate-top"></div>
+                                </div>
+                            </div>
+                            <div class="docker-card-stats">
+                                <div class="dstat">
+                                    <span class="dstat-label">CPU</span>
+                                    <div class="dstat-bar"><div class="dstat-fill" style="width:32%"></div></div>
+                                    <span class="dstat-val">3.2%</span>
+                                </div>
+                                <div class="dstat">
+                                    <span class="dstat-label">MEM</span>
+                                    <div class="dstat-bar"><div class="dstat-fill mem" style="width:55%"></div></div>
+                                    <span class="dstat-val">128MB</span>
+                                </div>
+                            </div>
+                            <div class="docker-card-meta">
+                                <span><i class="fas fa-tag"></i> fetchr:latest</span>
+                                <span><i class="fas fa-plug"></i> :3000</span>
+                            </div>
+                            <div class="docker-card-actions">
+                                <button class="act-btn small"><i class="fas fa-redo"></i></button>
+                                <button class="act-btn small"><i class="fas fa-scroll"></i></button>
+                                <button class="act-btn small danger"><i class="fas fa-stop"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="docker-card" data-container="caddy">
+                            <div class="docker-card-top">
+                                <div class="docker-card-status">
+                                    <span class="status-dot running"></span>
+                                    <strong>fetchr-caddy-1</strong>
+                                </div>
+                                <span class="slot-badge running">Running</span>
+                            </div>
+                            <div class="docker-card-visual">
+                                <div class="crate big">
+                                    <div class="crate-front"></div>
+                                    <div class="crate-side"></div>
+                                    <div class="crate-top"></div>
+                                </div>
+                            </div>
+                            <div class="docker-card-stats">
+                                <div class="dstat">
+                                    <span class="dstat-label">CPU</span>
+                                    <div class="dstat-bar"><div class="dstat-fill" style="width:8%"></div></div>
+                                    <span class="dstat-val">0.8%</span>
+                                </div>
+                                <div class="dstat">
+                                    <span class="dstat-label">MEM</span>
+                                    <div class="dstat-bar"><div class="dstat-fill mem" style="width:14%"></div></div>
+                                    <span class="dstat-val">32MB</span>
+                                </div>
+                            </div>
+                            <div class="docker-card-meta">
+                                <span><i class="fas fa-tag"></i> caddy:2-alpine</span>
+                                <span><i class="fas fa-plug"></i> :443</span>
+                            </div>
+                            <div class="docker-card-actions">
+                                <button class="act-btn small"><i class="fas fa-redo"></i></button>
+                                <button class="act-btn small"><i class="fas fa-scroll"></i></button>
+                                <button class="act-btn small danger"><i class="fas fa-stop"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === DEPLOY TAB === -->
+                <div class="tab" id="deploy-tab">
+                    <div class="section-header">
+                        <h1>Git Deploy</h1>
+                        <div class="branch-chip"><i class="fas fa-code-branch"></i> master</div>
+                    </div>
+
+                    <div class="deploy-full">
+                        <div class="deploy-form-card">
+                            <div class="toggle-bar">
+                                <button class="toggle-opt active">Local</button>
+                                <button class="toggle-opt">Serveur (VPS)</button>
+                            </div>
+                            <textarea class="deploy-textarea" placeholder="Describe your changes..." rows="3"></textarea>
+                            <div class="deploy-full-actions">
+                                <button class="deploy-btn big"><i class="fas fa-upload"></i> Commit & Push</button>
+                                <button class="deploy-btn big outline"><i class="fas fa-download"></i> Pull sur VPS</button>
+                                <button class="deploy-btn big outline warn"><i class="fas fa-redo"></i> Recompose</button>
+                            </div>
+                        </div>
+
+                        <div class="commits-card">
+                            <h3>Recent commits</h3>
+                            <div class="commit-list">
+                                <div class="commit-item slide-in" style="--delay: 0">
+                                    <div class="commit-sha">a3f21c8</div>
+                                    <div class="commit-info">
+                                        <span class="commit-msg">Fix video download timeout</span>
+                                        <span class="commit-meta">Horzyon &middot; 2h ago</span>
+                                    </div>
+                                </div>
+                                <div class="commit-item slide-in" style="--delay: 1">
+                                    <div class="commit-sha">e7b94d2</div>
+                                    <div class="commit-info">
+                                        <span class="commit-msg">Add TikTok support</span>
+                                        <span class="commit-meta">Horzyon &middot; 1d ago</span>
+                                    </div>
+                                </div>
+                                <div class="commit-item slide-in" style="--delay: 2">
+                                    <div class="commit-sha">1c0a5f9</div>
+                                    <div class="commit-info">
+                                        <span class="commit-msg">Update yt-dlp version</span>
+                                        <span class="commit-meta">Horzyon &middot; 3d ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === TERMINAL TAB === -->
+                <div class="tab" id="terminal-tab">
+                    <div class="terminal-full">
+                        <div class="terminal-head">
+                            <div class="terminal-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <span class="terminal-title">ubuntu@fetchr ~ SSH</span>
+                            <span class="slot-badge running">Connected</span>
+                        </div>
+                        <div class="terminal-body">
+                            <p><span class="tp">ubuntu@fetchr:~$</span> docker compose ps</p>
+                            <p class="to">NAME                STATUS    PORTS</p>
+                            <p class="to">fetchr-backend-1    Up 14d    0.0.0.0:3000->3000/tcp</p>
+                            <p class="to">fetchr-caddy-1      Up 14d    0.0.0.0:80->80/tcp, 443/tcp</p>
+                            <p><span class="tp">ubuntu@fetchr:~$</span> <span class="cursor-blink"></span></p>
+                        </div>
+                        <div class="terminal-input">
+                            <span class="ti-prefix">$</span>
+                            <input type="text" placeholder="commande...">
+                            <button class="ti-send"><i class="fas fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === CONFIG TAB === -->
+                <div class="tab" id="config-tab">
+                    <div class="section-header">
+                        <h1>Configuration</h1>
+                    </div>
+                    <div class="config-grid">
+                        <div class="config-card slide-in" style="--delay: 0">
+                            <h3><i class="fas fa-key"></i> SSH</h3>
+                            <div class="config-fields">
+                                <div class="cf"><label>Host</label><input type="text" value="ubuntu@152.228.137.122"></div>
+                                <div class="cf"><label>Port</label><input type="number" value="22"></div>
+                                <div class="cf"><label>Key</label><input type="text" value="~/.ssh/id_rsa"></div>
+                            </div>
+                            <button class="save-btn">Save</button>
+                        </div>
+                        <div class="config-card slide-in" style="--delay: 1">
+                            <h3><i class="fab fa-stripe-s"></i> Stripe</h3>
+                            <div class="config-fields">
+                                <div class="cf"><label>Secret key</label><input type="password" placeholder="sk_live_..."></div>
+                            </div>
+                            <button class="save-btn">Save</button>
+                        </div>
+                        <div class="config-card slide-in" style="--delay: 2">
+                            <h3><i class="fas fa-cloud"></i> Cloudflare</h3>
+                            <div class="config-fields">
+                                <div class="cf"><label>API Token</label><input type="password" placeholder="token..."></div>
+                                <div class="cf"><label>Zone ID</label><input type="text" placeholder="zone..."></div>
+                            </div>
+                            <button class="save-btn">Save</button>
+                        </div>
+                        <div class="config-card slide-in" style="--delay: 3">
+                            <h3><i class="fas fa-rocket"></i> Auto Deploy</h3>
+                            <p class="config-desc">Push + Pull VPS + Restart admin.fetchr.fr</p>
+                            <div class="config-fields">
+                                <div class="cf"><label>Message</label><input type="text" placeholder="Update..."></div>
+                            </div>
+                            <button class="save-btn warn">Deploy Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="mockup.js"></script>
+</body>
+</html>

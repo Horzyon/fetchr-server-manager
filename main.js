@@ -115,7 +115,7 @@ app.post('/api/auth/change-password', authMiddleware, (req, res) => {
         return res.status(400).json({ error: 'Mots de passe requis' });
     }
     if (!bcrypt.compareSync(currentPassword, authConfig.passwordHash)) {
-        return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
+        return res.status(403).json({ error: 'Mot de passe actuel incorrect' });
     }
     authConfig.passwordHash = bcrypt.hashSync(newPassword, 10);
     fs.writeFileSync(AUTH_FILE, JSON.stringify(authConfig, null, 2));
@@ -492,6 +492,89 @@ app.post('/api/deploy', authMiddleware, async (req, res) => {
         res.json({ success: true, steps });
     } catch (error) {
         res.status(500).json({ success: false, steps, error: error.message });
+    }
+});
+
+// --- Transfers: disk, files, logs ---
+
+app.get('/api/transfers/disk', authMiddleware, async (req, res) => {
+    try {
+        const result = await runCommand(`df -B1 / | awk 'NR==2{print $2"|"$3"|"$4"|"$5}'`);
+        const [total, used, free, percent] = result.split('|');
+        res.json({
+            total: parseInt(total),
+            used: parseInt(used),
+            free: parseInt(free),
+            percent: parseInt(percent)
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/transfers/files', authMiddleware, async (req, res) => {
+    const dir = req.query.path || '/home/ubuntu/transfer';
+    const allowedRoots = ['/home/ubuntu/transfer', '/home/ubuntu', '/'];
+    const isAllowed = allowedRoots.some(root => dir === root || dir.startsWith(root + '/'));
+    if (!isAllowed) return res.status(403).json({ error: 'Chemin non autorisé' });
+
+    try {
+        await runCommand(`mkdir -p /home/ubuntu/transfer`);
+        const result = await runCommand(`ls -la --time-style=long-iso "${dir}" 2>/dev/null | tail -n +2`);
+        if (!result) return res.json({ path: dir, files: [] });
+
+        const files = result.split('\n').filter(l => l.trim()).map(line => {
+            const parts = line.split(/\s+/);
+            if (parts.length < 8) return null;
+            const perms = parts[0];
+            const size = parseInt(parts[4]);
+            const date = parts[5] + ' ' + parts[6];
+            const name = parts.slice(7).join(' ');
+            if (name === '.' || name === '..') return null;
+            return {
+                name,
+                isDir: perms.startsWith('d'),
+                size,
+                date
+            };
+        }).filter(Boolean);
+
+        res.json({ path: dir, files });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/transfers/watch', authMiddleware, async (req, res) => {
+    try {
+        await runCommand(`mkdir -p /home/ubuntu/transfer`);
+        const result = await runCommand(`find /home/ubuntu/transfer -type f -mmin -60 -exec ls -lh --time-style=long-iso {} \\; 2>/dev/null | sort -k6,7 -r | head -20`);
+        const files = [];
+        if (result) {
+            result.split('\n').filter(l => l.trim()).forEach(line => {
+                const parts = line.split(/\s+/);
+                if (parts.length >= 8) {
+                    files.push({
+                        size: parts[4],
+                        date: parts[5] + ' ' + parts[6],
+                        path: parts.slice(7).join(' ').replace('/home/ubuntu/transfer/', '')
+                    });
+                }
+            });
+        }
+        res.json({ files });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/transfers/auth-log', authMiddleware, async (req, res) => {
+    try {
+        const result = await runCommand(`grep -i "scp\\|sftp\\|ssh" /var/log/auth.log 2>/dev/null | tail -30 || journalctl -u ssh --no-pager -n 30 2>/dev/null | grep -i "session\\|accepted\\|connection"`);
+        const lines = result ? result.split('\n').filter(l => l.trim()) : [];
+        res.json({ lines });
+    } catch (error) {
+        res.json({ lines: [] });
     }
 });
 

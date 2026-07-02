@@ -415,6 +415,7 @@ tabLinks.forEach(link => {
 
         if (tabId === 'git') fetchGitHistory();
         if (tabId === 'docker') { fetchDockerStatus(); fetchDockerStats(); }
+        if (tabId === 'transfers') { fetchDiskUsage(); fetchFiles(); fetchTransferWatch(); fetchAuthLog(); }
     });
 });
 
@@ -600,6 +601,175 @@ document.getElementById('change-password-btn').addEventListener('click', async (
         msg.style.color = '#ef4444';
         msg.textContent = err.message;
     }
+});
+
+// ===== API: Transfers =====
+
+async function fetchDiskUsage() {
+    try {
+        const res = await authFetch(`${API_BASE}/api/transfers/disk`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const percent = data.percent || 0;
+        const bar = document.getElementById('disk-bar');
+        bar.style.width = percent + '%';
+        bar.className = 'disk-bar' + (percent > 90 ? ' danger' : percent > 75 ? ' warning' : '');
+
+        const formatSize = (bytes) => {
+            if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
+            if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
+            return (bytes / 1e3).toFixed(1) + ' KB';
+        };
+        document.getElementById('disk-used').textContent = formatSize(data.used);
+        document.getElementById('disk-total').textContent = formatSize(data.total);
+        document.getElementById('disk-free').textContent = formatSize(data.free);
+    } catch (e) {}
+}
+
+let currentFilePath = '/home/ubuntu/transfer';
+
+async function fetchFiles(dir) {
+    currentFilePath = dir || currentFilePath;
+    document.getElementById('file-current-path').textContent = currentFilePath;
+    const body = document.getElementById('file-list-body');
+    body.innerHTML = '<p style="color:var(--text-muted);padding:15px;text-align:center;">Chargement...</p>';
+
+    try {
+        const res = await authFetch(`${API_BASE}/api/transfers/files?path=${encodeURIComponent(currentFilePath)}`);
+        if (!res.ok) throw new Error('Erreur');
+        const data = await res.json();
+        body.innerHTML = '';
+
+        if (data.files.length === 0) {
+            body.innerHTML = '<p style="color:var(--text-muted);padding:15px;text-align:center;">Dossier vide</p>';
+            return;
+        }
+
+        const sorted = data.files.sort((a, b) => {
+            if (a.isDir && !b.isDir) return -1;
+            if (!a.isDir && b.isDir) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        sorted.forEach(file => {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            const icon = file.isDir ? 'fa-folder' : 'fa-file';
+            const size = file.isDir ? '--' : formatFileSize(file.size);
+            div.innerHTML = `
+                <span class="file-item-name"><i class="fas ${icon}"></i> ${file.name}</span>
+                <span class="file-item-size">${size}</span>
+                <span class="file-item-date">${file.date}</span>
+            `;
+            if (file.isDir) {
+                div.addEventListener('click', () => {
+                    fetchFiles(currentFilePath + '/' + file.name);
+                });
+            }
+            body.appendChild(div);
+        });
+    } catch (e) {
+        body.innerHTML = '<p style="color:var(--danger);padding:15px;text-align:center;">Erreur de chargement</p>';
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
+    if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
+    if (bytes >= 1e3) return (bytes / 1e3).toFixed(1) + ' KB';
+    return bytes + ' B';
+}
+
+document.getElementById('file-root-select').addEventListener('change', (e) => {
+    fetchFiles(e.target.value);
+});
+
+document.getElementById('file-up-btn').addEventListener('click', () => {
+    const parent = currentFilePath.split('/').slice(0, -1).join('/') || '/';
+    const root = document.getElementById('file-root-select').value;
+    if (parent.length >= root.length) {
+        fetchFiles(parent);
+    }
+});
+
+document.getElementById('file-refresh-btn').addEventListener('click', () => {
+    fetchFiles(currentFilePath);
+});
+
+// Transfer watch
+let watchInterval = null;
+
+async function fetchTransferWatch() {
+    const log = document.getElementById('transfer-watch-log');
+    try {
+        const res = await authFetch(`${API_BASE}/api/transfers/watch`);
+        if (!res.ok) return;
+        const data = await res.json();
+        log.innerHTML = '';
+        if (data.files.length === 0) {
+            log.innerHTML = '<p class="log-line"><span class="log-info">Aucun fichier modifié dans la dernière heure</span></p>';
+        } else {
+            data.files.forEach(f => {
+                const p = document.createElement('p');
+                p.className = 'log-line';
+                p.innerHTML = `<span class="log-success">[${f.date}]</span> ${f.path} <span class="log-info">(${f.size})</span>`;
+                log.appendChild(p);
+            });
+        }
+    } catch (e) {}
+}
+
+async function fetchAuthLog() {
+    const log = document.getElementById('transfer-auth-log');
+    try {
+        const res = await authFetch(`${API_BASE}/api/transfers/auth-log`);
+        if (!res.ok) return;
+        const data = await res.json();
+        log.innerHTML = '';
+        if (data.lines.length === 0) {
+            log.innerHTML = '<p class="log-line"><span class="log-info">Aucune connexion récente</span></p>';
+        } else {
+            data.lines.forEach(line => {
+                const p = document.createElement('p');
+                p.className = 'log-line';
+                const isAccepted = line.toLowerCase().includes('accepted') || line.toLowerCase().includes('opened');
+                p.innerHTML = `<span class="log-${isAccepted ? 'success' : 'info'}">${line}</span>`;
+                log.appendChild(p);
+            });
+            log.scrollTop = log.scrollHeight;
+        }
+    } catch (e) {}
+}
+
+document.getElementById('transfer-watch-toggle').addEventListener('click', () => {
+    if (watchInterval) {
+        clearInterval(watchInterval);
+        watchInterval = null;
+        document.getElementById('transfer-watch-toggle').style.color = '';
+        addLog('Watch transfert désactivé', 'info');
+    } else {
+        fetchTransferWatch();
+        watchInterval = setInterval(fetchTransferWatch, 3000);
+        document.getElementById('transfer-watch-toggle').style.color = 'var(--success)';
+        addLog('Watch transfert activé (refresh 3s)', 'success');
+    }
+});
+
+document.getElementById('transfer-clear-btn').addEventListener('click', () => {
+    document.getElementById('transfer-watch-log').innerHTML = '<p class="log-line"><span class="log-info">Logs effacés</span></p>';
+    document.getElementById('transfer-auth-log').innerHTML = '<p class="log-line"><span class="log-info">Logs effacés</span></p>';
+});
+
+// Transfer sub-tabs
+document.querySelectorAll('.transfer-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.transfer-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.getAttribute('data-transfer-tab');
+        document.getElementById('transfer-watch-log').style.display = target === 'watch' ? '' : 'none';
+        document.getElementById('transfer-auth-log').style.display = target === 'auth' ? '' : 'none';
+        if (target === 'auth') fetchAuthLog();
+    });
 });
 
 // ===== API: Fetchr Health (Cookies) =====

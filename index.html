@@ -61,6 +61,10 @@
                     <i class="fas fa-cube"></i>
                     <span>Docker</span>
                 </li>
+                <li data-tab="transfers">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transferts</span>
+                </li>
                 <li data-tab="terminal">
                     <i class="fas fa-terminal"></i>
                     <span>Terminal</span>
@@ -362,6 +366,95 @@
                         <div class="stat">
                             <span class="stat-label">RAM</span>
                             <span class="stat-value" id="docker-ram">0 MB</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transfers Tab -->
+        <div class="tab-content" id="transfers-tab">
+            <div class="dashboard-grid">
+                <!-- Disk Usage -->
+                <div class="card card-full">
+                    <div class="card-header">
+                        <i class="fas fa-hdd"></i>
+                        <h2>Espace disque</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="disk-usage">
+                            <div class="disk-bar-container">
+                                <div class="disk-bar" id="disk-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="disk-info">
+                                <span id="disk-used">--</span> utilisé sur <span id="disk-total">--</span> (<span id="disk-free">--</span> libre)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Browser -->
+                <div class="card card-full">
+                    <div class="card-header">
+                        <i class="fas fa-folder-open"></i>
+                        <h2>Navigateur de fichiers</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="file-browser-controls">
+                            <div class="form-group" style="margin-bottom:10px;">
+                                <select id="file-root-select">
+                                    <option value="/home/ubuntu/transfer">/home/ubuntu/transfer/</option>
+                                    <option value="/home/ubuntu">/home/ubuntu/</option>
+                                    <option value="/">/  (tout le VPS)</option>
+                                </select>
+                            </div>
+                            <div class="file-path-bar">
+                                <button class="btn btn-secondary btn-sm" id="file-up-btn" title="Dossier parent">
+                                    <i class="fas fa-level-up-alt"></i>
+                                </button>
+                                <span class="file-current-path" id="file-current-path">/home/ubuntu/transfer</span>
+                                <button class="btn btn-secondary btn-sm" id="file-refresh-btn" title="Rafraîchir">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="file-list" id="file-list">
+                            <div class="file-list-header">
+                                <span class="file-col-name">Nom</span>
+                                <span class="file-col-size">Taille</span>
+                                <span class="file-col-date">Modifié</span>
+                            </div>
+                            <div class="file-list-body" id="file-list-body">
+                                <p style="color:var(--text-muted);padding:15px;text-align:center;">Chargement...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transfer Logs -->
+                <div class="card card-full">
+                    <div class="card-header">
+                        <i class="fas fa-exchange-alt"></i>
+                        <h2>Activité de transfert</h2>
+                        <div style="margin-left:auto;display:flex;gap:5px;">
+                            <button class="btn-icon-small" id="transfer-watch-toggle" title="Watch transfer/">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-icon-small" id="transfer-clear-btn" title="Effacer">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="transfer-tabs">
+                            <button class="transfer-tab active" data-transfer-tab="watch">Watch dossier</button>
+                            <button class="transfer-tab" data-transfer-tab="auth">Connexions SSH</button>
+                        </div>
+                        <div class="terminal transfer-log" id="transfer-watch-log">
+                            <p class="log-line"><span class="log-info">En attente de transferts...</span></p>
+                        </div>
+                        <div class="terminal transfer-log" id="transfer-auth-log" style="display:none;">
+                            <p class="log-line"><span class="log-info">Chargement des logs SSH...</span></p>
                         </div>
                     </div>
                 </div>
