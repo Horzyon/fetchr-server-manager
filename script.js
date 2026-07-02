@@ -29,8 +29,8 @@ function showLoginScreen() {
 
 function hideLoginScreen() {
     document.getElementById('login-overlay').style.display = 'none';
-    document.querySelector('.top-bar').style.display = '';
-    document.querySelector('.app-layout').style.display = '';
+    document.querySelector('.top-bar').style.display = 'flex';
+    document.querySelector('.app-layout').style.display = 'flex';
 }
 
 async function checkAuth() {

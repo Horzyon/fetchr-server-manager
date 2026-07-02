@@ -9,15 +9,26 @@
 </head>
 <body>
     <!-- Login Overlay -->
-    <div id="login-overlay" style="display:none;position:fixed;inset:0;background:#0a0a0f;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-        <div style="background:#14141f;border:1px solid #2a2a3a;border-radius:12px;padding:40px;width:100%;max-width:360px;">
-            <h2 style="font-family:sans-serif;color:#e8e8f0;margin-bottom:8px;font-size:1.3rem;">Fetchr Admin</h2>
-            <p style="color:#6b6b80;font-size:0.85rem;margin-bottom:24px;">Connexion au panneau d'administration</p>
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fas fa-server"></i>
+                <h2>Fetchr Admin</h2>
+            </div>
+            <p class="login-subtitle">Connexion au panneau d'administration</p>
             <form id="login-form">
-                <input id="login-username" type="text" placeholder="Username" required style="width:100%;padding:12px;margin-bottom:12px;background:#0a0a0f;border:1px solid #2a2a3a;border-radius:8px;color:#e8e8f0;font-size:0.9rem;outline:none;">
-                <input id="login-password" type="password" placeholder="Password" required style="width:100%;padding:12px;margin-bottom:16px;background:#0a0a0f;border:1px solid #2a2a3a;border-radius:8px;color:#e8e8f0;font-size:0.9rem;outline:none;">
-                <button type="submit" style="width:100%;padding:12px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;">Se connecter</button>
-                <p id="login-error" style="color:#ef4444;font-size:0.8rem;margin-top:12px;text-align:center;"></p>
+                <div class="form-group">
+                    <label>Utilisateur</label>
+                    <input id="login-username" type="text" placeholder="admin" required>
+                </div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input id="login-password" type="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Se connecter
+                </button>
+                <p id="login-error" class="login-error"></p>
             </form>
         </div>
     </div>
